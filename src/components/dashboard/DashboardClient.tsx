@@ -30,7 +30,7 @@ export function DashboardClient() {
   const max = Math.max(...pipeline.map(([, value]) => value), 1);
 
   return <div className="page">
-    <div className="page-header"><div><div className="eyebrow">AI lead intelligence</div><h1>Dashboard</h1><p className="page-subtitle">Sprint 0.5 persists companies, CRM state, notes, activity history, mockups and outreach in Supabase.</p></div><Link href="/companies" className="button primary"><Building2 size={17}/>Browse companies</Link></div>
+    <div className="page-header"><div><div className="eyebrow">AI lead intelligence</div><h1>Dashboard</h1><p className="page-subtitle">Sprint 0.6 protects the Supabase workspace with Auth, member-only RLS and persistent CRM workflows.</p></div><Link href="/companies" className="button primary"><Building2 size={17}/>Browse companies</Link></div>
     <section className="kpi-grid">
       <KpiCard label="Companies discovered" value={total} change="dummy dataset" icon={Building2}/>
       <KpiCard label="No website" value={noWebsite} change="strong opportunity" icon={Globe2}/>

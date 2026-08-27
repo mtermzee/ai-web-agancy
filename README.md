@@ -1,99 +1,103 @@
-# AgencyOS MVP — Sprint 0.5 (Supabase)
+# AgencyOS MVP — Sprint 0.6
 
-AgencyOS is now connected to Supabase while keeping the existing Next.js UI and CRM workflow intact. GitHub + Vercel are assumed to be already configured.
+AgencyOS is the interactive AI web-agency MVP built with Next.js, TypeScript and Supabase.
+Sprint 0.6 adds authentication and locks the database behind an explicit workspace membership allowlist.
 
-## What changed in Sprint 0.5
+## Stack
 
-- `@supabase/supabase-js` + `@supabase/ssr`
-- Browser Supabase client
-- Server Supabase client
-- Next.js 16 `proxy.ts` session refresh using `auth.getClaims()`
-- Normalized Supabase schema for:
-  - `companies`
-  - `website_audits`
-  - `leads`
-  - `lead_notes`
-  - `lead_activities`
-  - `mockups`
-  - `outreach`
-- Companies and workflow state load from Supabase
-- Status, score, priority, notes, timeline, mockups and outreach are persisted to Supabase
-- Empty database is automatically seeded with the existing 15 demo companies
-- LocalStorage remains as a safe UI fallback if Supabase is unavailable or the migration has not been run
-- Dynamic company detail/mockup routes can resolve Supabase-created company IDs server-side
-- `/settings` shows Supabase connection/sync status
+- Next.js App Router
+- TypeScript / React
+- Supabase Database
+- Supabase Auth
+- `@supabase/ssr` cookie-based sessions
+- Lucide Icons
 
-## 1. Install dependencies
+## What Sprint 0.6 adds
+
+- `/login` with Supabase email/password sign-in
+- Logout from the top bar
+- Server-side route protection with `auth.getClaims()`
+- Next.js `proxy.ts` session refresh
+- `workspace_members` allowlist
+- Anonymous DB access revoked
+- RLS policies restricted to authenticated workspace members
+- `/access-denied` for authenticated users who are not workspace members
+- Existing Companies / Audits / Leads / Notes / Timeline / Mockups / Outreach persistence remains intact
+
+## 1. Install
 
 ```bash
 npm install
+npm run dev
 ```
 
-The package file already includes:
+## 2. Supabase environment variables
 
-```bash
-npm install @supabase/supabase-js @supabase/ssr
+Local `.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://prgcclwtgbsvcxtawhyy.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_publishable_key
 ```
 
-## 2. Environment variables
+Set the same variables in Vercel under Project Settings -> Environment Variables.
 
-Copy `.env.example` to `.env.local` for local development. The supplied project URL and publishable key are already present in the example.
+## 3. Database migrations
 
-For Vercel, add both variables under **Project → Settings → Environment Variables**:
-
-```text
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-```
-
-Then redeploy.
-
-## 3. Create the database tables
-
-Open the Supabase SQL Editor and run:
+If Sprint 0.5 migration has not been run yet, run first:
 
 ```text
 supabase/migrations/001_agencyos_mvp.sql
 ```
 
-After the migration succeeds, open the app. If `companies` is empty, AgencyOS automatically seeds the 15 demo companies and their audits/workflow state.
+Then run:
 
-## 4. Run locally
-
-```bash
-npm run dev
+```text
+supabase/migrations/002_auth_and_secure_rls.sql
 ```
 
-Open `http://localhost:3000/settings` first. It should show **Supabase — Connected**.
+Migration 002 removes the permissive anonymous policies from 0.5 and adds the `workspace_members` access gate.
 
-Useful routes:
+## 4. Create your login user
 
-- `/dashboard`
-- `/companies`
-- `/companies/rheinblick-dental`
-- `/leads`
-- `/mockups`
-- `/outreach`
-- `/settings`
+In Supabase Dashboard:
 
-## Architecture
+1. Authentication -> Users
+2. Create a user with your email and password
+3. Make sure the user can sign in
 
-- `src/data/companies.ts` — immutable demo seed/fallback
-- `src/lib/repositories/agencyRepository.ts` — browser data repository + demo seeding + writes
-- `src/lib/repositories/agencyServerRepository.ts` — server-side company lookup
-- `src/lib/supabase/client.ts` — browser Supabase client
-- `src/lib/supabase/server.ts` — server Supabase client
-- `src/lib/supabase/proxy.ts` — session refresh helper
-- `proxy.ts` — Next.js Proxy entry point
-- `src/components/providers/CompanyStoreProvider.tsx` — optimistic UI state + Supabase persistence + LocalStorage fallback
-- `supabase/migrations/001_agencyos_mvp.sql` — database schema and temporary MVP RLS policies
+AgencyOS intentionally exposes no public sign-up page.
 
-## Security note for this MVP
+## 5. Authorize the user for AgencyOS
 
-There is still **no authentication**. The migration intentionally uses temporary anonymous read/write RLS policies so the deployed MVP can persist data using the publishable key.
+Open:
 
-Do **not** store real customer data with these policies. Before production or real lead ingestion, the next security step should be Supabase Auth + workspace-scoped RLS policies. The publishable key itself is designed to be public; access control must come from RLS/authentication.
+```text
+supabase/setup/authorize_owner.sql
+```
 
-## Next sprint
+Replace `YOUR_LOGIN_EMAIL@example.com` with the exact Auth email and run the SQL in Supabase SQL Editor.
 
-Recommended next step: Gemini integration behind server-side routes/actions, while keeping analysis generation separate from database persistence. After that, the first n8n Lead Finder can insert companies into the same Supabase schema.
+The final verification query should show one row with role `owner`.
+
+## 6. Recommended Supabase Auth setting
+
+Because this MVP is currently a private single-workspace app, keep public user registration disabled in Supabase Auth settings. The workspace allowlist still protects the data if registration is accidentally enabled later.
+
+## 7. Deploy
+
+```bash
+git add .
+git commit -m "feat: add Supabase auth and secure RLS"
+git push
+```
+
+Vercel should deploy automatically.
+
+Open the production app. Signed-out visitors should be redirected to `/login`. After sign-in, only users present in `workspace_members` can enter the dashboard.
+
+## Security model
+
+Browser code uses only the Supabase publishable key. It is not a database secret. Authorization is enforced by Supabase Auth + Postgres grants + RLS. No service-role/secret key is included in the frontend.
+
+Current workspace model: all authorized `workspace_members` share the same AgencyOS dataset. A later SaaS/multi-tenant sprint can add `workspace_id` ownership to every domain table.

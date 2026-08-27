@@ -21,7 +21,7 @@ export default function Page() {
           <div className="panel-header">
             <div>
               <h2>Supabase</h2>
-              <div className="panel-note">Primary persistence layer for Sprint 0.5</div>
+              <div className="panel-note">Authenticated persistence layer for Sprint 0.6</div>
             </div>
             <span className={`badge ${dataSource === "supabase" ? "green" : "orange"}`}>
               {dataSource === "supabase" ? "Connected" : "Local fallback"}
@@ -37,7 +37,7 @@ export default function Page() {
               <p>
                 {dataSource === "supabase"
                   ? `${companies.length} companies are loaded from Supabase. CRM edits are persisted remotely.`
-                  : "The UI still works with local seed data. Run the SQL migration and verify the Vercel environment variables to enable Supabase."}
+                  : "The UI is using local seed data. Verify migrations 001 + 002, workspace membership and the Vercel environment variables."}
               </p>
             </div>
           </div>
@@ -71,13 +71,17 @@ export default function Page() {
             {[
               "Browser Supabase client",
               "Server Supabase client",
+              "Supabase Auth login + logout",
               "Next.js proxy session refresh",
+              "Server-side protected routes",
+              "Workspace membership gate",
+              "Authenticated-only RLS policies",
               "Companies + website audits",
               "Lead score, status and priority",
               "Notes + activity timeline",
               "Mockup state",
               "Outreach drafts + approval",
-              "LocalStorage fallback",
+              "LocalStorage network fallback",
             ].map((item) => (
               <li key={item}><CheckCircle2 size={15} />{item}</li>
             ))}
