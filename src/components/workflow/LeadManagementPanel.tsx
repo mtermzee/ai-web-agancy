@@ -37,7 +37,7 @@ export function LeadManagementPanel({ company }: { company: Company }) {
 
   return <>
     <section className="card panel">
-      <div className="panel-header"><div><h2>Lead management</h2><div className="panel-note">Local CRM state · ready to map to Supabase later</div></div></div>
+      <div className="panel-header"><div><h2>Lead management</h2><div className="panel-note">Supabase-backed CRM state · LocalStorage fallback</div></div></div>
       <div className="lead-management-grid">
         <div className="lead-score-card">
           <div className="lead-score-ring" style={{"--lead-score": `${workflow.leadScore * 3.6}deg`} as CSSProperties}>
@@ -53,7 +53,7 @@ export function LeadManagementPanel({ company }: { company: Company }) {
     </section>
 
     <section className="card panel">
-      <div className="panel-header"><div><h2>Internal notes</h2><div className="panel-note">Human-only context for qualification and follow-up</div></div>{notesDirty ? <span className="unsaved-indicator">Unsaved changes</span> : workflow.notes ? <span className="saved-indicator"><Check size={13}/>Saved locally</span> : null}</div>
+      <div className="panel-header"><div><h2>Internal notes</h2><div className="panel-note">Human-only context for qualification and follow-up</div></div>{notesDirty ? <span className="unsaved-indicator">Unsaved changes</span> : workflow.notes ? <span className="saved-indicator"><Check size={13}/>Saved</span> : null}</div>
       <textarea className="notes-area" value={notes} onChange={(event) => { setNotes(event.target.value); setNotesDirty(true); }} placeholder="Add context from your research or human review…"/>
       <div className="notes-actions"><span>{notes.length} characters</span><button className="button secondary" disabled={!notesDirty} onClick={handleSaveNotes}><Save size={15}/>Save notes</button></div>
     </section>

@@ -69,7 +69,7 @@ export function CompanyDetailClient({ initialCompany }: { initialCompany: Compan
         <section className="card panel ai-box"><div className="ai-chip"><Sparkles size={13}/>Gemini analyst · simulated</div><h2>AI recommendation</h2><p>{company.aiSummary}</p><p><strong>Opportunity:</strong> {company.opportunity}</p><p><strong>Recommendation:</strong> {company.recommendation}</p></section>
         <section className="card panel"><div className="panel-header"><div><h2>Suggested structure</h2><div className="panel-note">Future mockup generator input</div></div></div><ol className="structure-list">{company.suggestedStructure.map((item) => <li key={item}>{item}</li>)}</ol></section>
         <section className="card panel"><div className="panel-header"><div><h2>Sales angle</h2><div className="panel-note">Review before future outreach</div></div></div><p className="body-copy">{company.salesAngle}</p></section>
-        {workflow && <section className="card panel"><div className="panel-header"><div><h2>Activity timeline</h2><div className="panel-note">Local history of human workflow actions</div></div></div><ActivityTimeline activities={workflow.activities}/></section>}
+        {workflow && <section className="card panel"><div className="panel-header"><div><h2>Activity timeline</h2><div className="panel-note">Persisted history of human workflow actions</div></div></div><ActivityTimeline activities={workflow.activities}/></section>}
       </aside>
     </div>
   </div>;

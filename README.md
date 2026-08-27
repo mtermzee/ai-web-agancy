@@ -1,42 +1,70 @@
-# AgencyOS MVP — Sprint 0.3
+# AgencyOS MVP — Sprint 0.5 (Supabase)
 
-A frontend-only MVP for an AI-assisted web-agency lead workflow. The app uses hardcoded company data plus LocalStorage for interactive CRM state. There is still no database, authentication, Gemini API, n8n workflow, scraping, or email sending.
+AgencyOS is now connected to Supabase while keeping the existing Next.js UI and CRM workflow intact. GitHub + Vercel are assumed to be already configured.
 
-## Sprint 0.3 features
+## What changed in Sprint 0.5
 
-- SaaS app shell with responsive sidebar/navigation
-- Dashboard with live local KPIs
-- 15 realistic dummy companies
-- Search and filtering by industry, country, website, potential, status, website score and CRM priority
-- Company detail view and website audit scores
-- Simulated website mockup generation
-- Human review queue
-- Local lead score and priority management
-- Internal notes per company
-- Activity timeline for status, score, priority, notes, mockups and outreach actions
-- Personalized outreach draft workspace
-- Explicit human approval state for outreach drafts
-- No automatic sending of any message
-- LocalStorage persistence with migration from Sprint 0.2 state
+- `@supabase/supabase-js` + `@supabase/ssr`
+- Browser Supabase client
+- Server Supabase client
+- Next.js 16 `proxy.ts` session refresh using `auth.getClaims()`
+- Normalized Supabase schema for:
+  - `companies`
+  - `website_audits`
+  - `leads`
+  - `lead_notes`
+  - `lead_activities`
+  - `mockups`
+  - `outreach`
+- Companies and workflow state load from Supabase
+- Status, score, priority, notes, timeline, mockups and outreach are persisted to Supabase
+- Empty database is automatically seeded with the existing 15 demo companies
+- LocalStorage remains as a safe UI fallback if Supabase is unavailable or the migration has not been run
+- Dynamic company detail/mockup routes can resolve Supabase-created company IDs server-side
+- `/settings` shows Supabase connection/sync status
 
-## Architecture
-
-- `src/data/companies.ts` — immutable dummy source data
-- `src/types/company.ts` — company/audit domain model
-- `src/types/workflow.ts` — CRM/workflow domain model
-- `src/lib/workflow.ts` — deterministic MVP lead scoring and default outreach draft generation
-- `src/components/providers/CompanyStoreProvider.tsx` — local repository/state adapter; intended replacement point for Supabase later
-- `src/components/workflow/*` — CRM controls and activity timeline
-- `src/components/outreach/*` — human-reviewed draft workspace
-
-## Run locally
+## 1. Install dependencies
 
 ```bash
 npm install
+```
+
+The package file already includes:
+
+```bash
+npm install @supabase/supabase-js @supabase/ssr
+```
+
+## 2. Environment variables
+
+Copy `.env.example` to `.env.local` for local development. The supplied project URL and publishable key are already present in the example.
+
+For Vercel, add both variables under **Project → Settings → Environment Variables**:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+```
+
+Then redeploy.
+
+## 3. Create the database tables
+
+Open the Supabase SQL Editor and run:
+
+```text
+supabase/migrations/001_agencyos_mvp.sql
+```
+
+After the migration succeeds, open the app. If `companies` is empty, AgencyOS automatically seeds the 15 demo companies and their audits/workflow state.
+
+## 4. Run locally
+
+```bash
 npm run dev
 ```
 
-Then open `http://localhost:3000`.
+Open `http://localhost:3000/settings` first. It should show **Supabase — Connected**.
 
 Useful routes:
 
@@ -46,14 +74,26 @@ Useful routes:
 - `/leads`
 - `/mockups`
 - `/outreach`
+- `/settings`
 
-## Next integration path
+## Architecture
 
-1. GitHub repository + CI baseline
-2. Vercel deployment
-3. Replace local workflow adapter with Supabase repositories
-4. Gemini analysis API behind server-side routes/actions
-5. n8n lead-finder ingestion
-6. Website audit automation
-7. Real scoring calibration
-8. Outreach generation + human review, while keeping sending as a separate controlled step
+- `src/data/companies.ts` — immutable demo seed/fallback
+- `src/lib/repositories/agencyRepository.ts` — browser data repository + demo seeding + writes
+- `src/lib/repositories/agencyServerRepository.ts` — server-side company lookup
+- `src/lib/supabase/client.ts` — browser Supabase client
+- `src/lib/supabase/server.ts` — server Supabase client
+- `src/lib/supabase/proxy.ts` — session refresh helper
+- `proxy.ts` — Next.js Proxy entry point
+- `src/components/providers/CompanyStoreProvider.tsx` — optimistic UI state + Supabase persistence + LocalStorage fallback
+- `supabase/migrations/001_agencyos_mvp.sql` — database schema and temporary MVP RLS policies
+
+## Security note for this MVP
+
+There is still **no authentication**. The migration intentionally uses temporary anonymous read/write RLS policies so the deployed MVP can persist data using the publishable key.
+
+Do **not** store real customer data with these policies. Before production or real lead ingestion, the next security step should be Supabase Auth + workspace-scoped RLS policies. The publishable key itself is designed to be public; access control must come from RLS/authentication.
+
+## Next sprint
+
+Recommended next step: Gemini integration behind server-side routes/actions, while keeping analysis generation separate from database persistence. After that, the first n8n Lead Finder can insert companies into the same Supabase schema.

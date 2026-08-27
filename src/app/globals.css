@@ -402,3 +402,20 @@ textarea { font: inherit; }
   .lead-score-card { align-items:flex-start; flex-direction:column; }
   .score-input-row { grid-template-columns:1fr; }
 }
+
+/* Sprint 0.5 — Supabase integration */
+.settings-grid { display:grid; grid-template-columns:1.15fr .85fr; gap:18px; }
+.integration-status { display:flex; gap:13px; align-items:flex-start; padding:15px; border:1px solid #eef0f2; background:#fafbfc; border-radius:13px; }
+.integration-status strong { display:block; font-size:14px; }
+.integration-status p { margin:4px 0 0; color:var(--muted); font-size:12px; line-height:1.55; }
+.integration-icon { width:40px; height:40px; border-radius:11px; display:grid; place-items:center; flex:0 0 auto; }
+.integration-icon.ok { color:var(--success); background:var(--success-soft); }
+.integration-icon.warning { color:var(--warning); background:var(--warning-soft); }
+.sync-error { margin-top:12px; display:flex; gap:8px; align-items:flex-start; color:#b42318; background:#fef3f2; border:1px solid #fee4e2; border-radius:10px; padding:10px 12px; font-size:11px; line-height:1.45; }
+.settings-actions { display:flex; gap:9px; flex-wrap:wrap; margin-top:14px; }
+.integration-list { list-style:none; padding:0; margin:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.integration-list li { display:flex; align-items:center; gap:8px; padding:10px 11px; border:1px solid #eef0f2; background:#fafbfc; border-radius:10px; font-size:12px; font-weight:650; color:#344054; }
+.integration-list svg { color:var(--success); flex:0 0 auto; }
+.spin-icon { animation:spin .75s linear infinite; }
+@media (max-width: 1000px) { .settings-grid { grid-template-columns:1fr; } }
+@media (max-width: 620px) { .integration-list { grid-template-columns:1fr; } }

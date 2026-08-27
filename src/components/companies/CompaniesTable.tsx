@@ -10,7 +10,7 @@ import { StatusSelect } from "@/components/companies/StatusSelect";
 import { useCompanyStore } from "@/components/providers/CompanyStoreProvider";
 
 export function CompaniesTable() {
-  const { companies, getWorkflow, updateStatus } = useCompanyStore();
+  const { companies, getWorkflow, updateStatus, dataSource } = useCompanyStore();
   const [query, setQuery] = useState("");
   const [industry, setIndustry] = useState("all");
   const [country, setCountry] = useState("all");
@@ -58,7 +58,7 @@ export function CompaniesTable() {
       <select className="control" value={score} onChange={(event) => setScore(event.target.value)}><option value="all">All website scores</option><option value="0-39">Score 0–39</option><option value="40-59">Score 40–59</option><option value="60-79">Score 60–79</option><option value="80-100">Score 80–100</option></select>
       <button className="button secondary filter-reset" onClick={resetFilters}><RotateCcw size={15}/>Reset</button>
     </div>
-    <div className="table-meta"><strong>{filtered.length}</strong> of {companies.length} companies shown <span>· CRM changes persist in LocalStorage</span></div>
+    <div className="table-meta"><strong>{filtered.length}</strong> of {companies.length} companies shown <span>· CRM changes persist in {dataSource === "supabase" ? "Supabase" : "LocalStorage fallback"}</span></div>
     <div className="table-wrap"><table><thead><tr><th>Company</th><th>Location</th><th>Website</th><th>Web score</th><th>Lead score</th><th>Status</th><th>Potential</th><th>Priority</th><th></th></tr></thead><tbody>
       {filtered.map((company) => {
         const workflow = getWorkflow(company.id);

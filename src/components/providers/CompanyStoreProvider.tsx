@@ -1,7 +1,21 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { companies as seedCompanies } from "@/data/companies";
+import {
+  isSupabaseConfigured,
+  loadAgencyState,
+  resetSupabaseDemoData,
+  saveWorkflowState,
+  seedSupabaseDemoData,
+} from "@/lib/repositories/agencyRepository";
 import { createDefaultWorkflow, priorityFromScore } from "@/lib/workflow";
 import type { Company, LeadStatus } from "@/types/company";
 import type { CompanyWorkflowState, LeadPriority, OutreachDraft } from "@/types/workflow";
@@ -9,10 +23,14 @@ import type { CompanyWorkflowState, LeadPriority, OutreachDraft } from "@/types/
 type WorkflowOverrides = Record<string, Partial<CompanyWorkflowState>>;
 type LegacyOverride = Partial<Pick<Company, "status" | "mockupReady">>;
 type LegacyOverrides = Record<string, LegacyOverride>;
+type DataSource = "supabase" | "local";
 
 type CompanyStore = {
   companies: Company[];
   hydrated: boolean;
+  dataSource: DataSource;
+  syncing: boolean;
+  syncError: string | null;
   getCompany: (id: string) => Company | undefined;
   getWorkflow: (id: string) => CompanyWorkflowState | undefined;
   updateStatus: (id: string, status: LeadStatus) => void;
@@ -23,6 +41,7 @@ type CompanyStore = {
   setOutreachApproved: (id: string, approved: boolean) => void;
   sendToReview: (id: string) => void;
   markMockupReady: (id: string) => void;
+  syncFromSupabase: () => Promise<void>;
   resetDemoData: () => void;
 };
 
@@ -35,8 +54,38 @@ function activityId(type: string) {
 }
 
 export function CompanyStoreProvider({ children }: { children: React.ReactNode }) {
+  const [baseCompanies, setBaseCompanies] = useState<Company[]>(seedCompanies);
   const [overrides, setOverrides] = useState<WorkflowOverrides>({});
   const [hydrated, setHydrated] = useState(false);
+  const [dataSource, setDataSource] = useState<DataSource>("local");
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  const syncFromSupabase = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      setDataSource("local");
+      setSyncError("Supabase environment variables are not configured.");
+      return;
+    }
+
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      let state = await loadAgencyState();
+      if (!state.companies.length) {
+        await seedSupabaseDemoData(seedCompanies);
+        state = await loadAgencyState();
+      }
+      setBaseCompanies(state.companies);
+      setOverrides(state.workflows);
+      setDataSource("supabase");
+    } catch (error) {
+      setDataSource("local");
+      setSyncError(error instanceof Error ? error.message : "Supabase sync failed.");
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -52,7 +101,9 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
     } finally {
       setHydrated(true);
     }
-  }, []);
+
+    void syncFromSupabase();
+  }, [syncFromSupabase]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -61,7 +112,7 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
 
   const workflows = useMemo(() => {
     const result: Record<string, CompanyWorkflowState> = {};
-    for (const company of seedCompanies) {
+    for (const company of baseCompanies) {
       const base = createDefaultWorkflow(company);
       const saved = overrides[company.id] ?? {};
       result[company.id] = {
@@ -72,113 +123,292 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
       };
     }
     return result;
-  }, [overrides]);
+  }, [baseCompanies, overrides]);
 
   const companies = useMemo(
-    () => seedCompanies.map((company) => ({
-      ...company,
-      status: workflows[company.id]?.status ?? company.status,
-      mockupReady: workflows[company.id]?.mockupReady ?? company.mockupReady,
-    })),
-    [workflows],
+    () =>
+      baseCompanies.map((company) => ({
+        ...company,
+        status: workflows[company.id]?.status ?? company.status,
+        mockupReady: workflows[company.id]?.mockupReady ?? company.mockupReady,
+      })),
+    [baseCompanies, workflows],
   );
 
-  const getCompany = useCallback((id: string) => companies.find((company) => company.id === id), [companies]);
+  const getCompany = useCallback(
+    (id: string) => companies.find((company) => company.id === id),
+    [companies],
+  );
   const getWorkflow = useCallback((id: string) => workflows[id], [workflows]);
 
-  const updateState = useCallback((id: string, recipe: (current: CompanyWorkflowState) => CompanyWorkflowState) => {
-    const company = seedCompanies.find((item) => item.id === id);
-    if (!company) return;
-    setOverrides((currentOverrides) => {
-      const base = createDefaultWorkflow(company);
-      const saved = currentOverrides[id] ?? {};
-      const current: CompanyWorkflowState = {
-        ...base,
-        ...saved,
-        outreach: { ...base.outreach, ...(saved.outreach ?? {}) },
-        activities: saved.activities ?? base.activities,
-      };
-      return { ...currentOverrides, [id]: recipe(current) };
-    });
-  }, []);
+  const persistWorkflow = useCallback(
+    (company: Company, next: CompanyWorkflowState) => {
+      if (dataSource !== "supabase") return;
+      setSyncing(true);
+      void saveWorkflowState(company, next)
+        .then(() => setSyncError(null))
+        .catch((error) => {
+          setSyncError(error instanceof Error ? error.message : "Supabase write failed.");
+        })
+        .finally(() => setSyncing(false));
+    },
+    [dataSource],
+  );
 
-  const updateStatus = useCallback((id: string, status: LeadStatus) => {
-    updateState(id, (current) => {
-      if (current.status === status) return current;
-      return {
+  const updateState = useCallback(
+    (id: string, recipe: (current: CompanyWorkflowState) => CompanyWorkflowState) => {
+      const company = companies.find((item) => item.id === id);
+      const current = workflows[id];
+      if (!company || !current) return;
+
+      const next = recipe(current);
+      if (next === current) return;
+      setOverrides((currentOverrides) => ({ ...currentOverrides, [id]: next }));
+      persistWorkflow(company, next);
+    },
+    [companies, workflows, persistWorkflow],
+  );
+
+  const updateStatus = useCallback(
+    (id: string, status: LeadStatus) => {
+      updateState(id, (current) => {
+        if (current.status === status) return current;
+        return {
+          ...current,
+          status,
+          activities: [
+            {
+              id: activityId("status"),
+              type: "status",
+              title: "Lead status changed",
+              detail: `${current.status} → ${status}`,
+              createdAt: new Date().toISOString(),
+            },
+            ...current.activities,
+          ],
+        };
+      });
+    },
+    [updateState],
+  );
+
+  const updatePriority = useCallback(
+    (id: string, priority: LeadPriority) => {
+      updateState(id, (current) =>
+        current.priority === priority
+          ? current
+          : {
+              ...current,
+              priority,
+              activities: [
+                {
+                  id: activityId("priority"),
+                  type: "priority",
+                  title: "Priority updated",
+                  detail: `${current.priority} → ${priority}`,
+                  createdAt: new Date().toISOString(),
+                },
+                ...current.activities,
+              ],
+            },
+      );
+    },
+    [updateState],
+  );
+
+  const updateLeadScore = useCallback(
+    (id: string, rawScore: number) => {
+      const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+      updateState(id, (current) =>
+        current.leadScore === score
+          ? current
+          : {
+              ...current,
+              leadScore: score,
+              priority: priorityFromScore(score),
+              activities: [
+                {
+                  id: activityId("score"),
+                  type: "score",
+                  title: "Lead score adjusted",
+                  detail: `${current.leadScore} → ${score}`,
+                  createdAt: new Date().toISOString(),
+                },
+                ...current.activities,
+              ],
+            },
+      );
+    },
+    [updateState],
+  );
+
+  const saveNotes = useCallback(
+    (id: string, notes: string) => {
+      updateState(id, (current) =>
+        current.notes === notes
+          ? current
+          : {
+              ...current,
+              notes,
+              activities: [
+                {
+                  id: activityId("note"),
+                  type: "note",
+                  title: "Lead notes saved",
+                  detail: notes.trim()
+                    ? "Notes were updated for human review."
+                    : "Notes were cleared.",
+                  createdAt: new Date().toISOString(),
+                },
+                ...current.activities,
+              ],
+            },
+      );
+    },
+    [updateState],
+  );
+
+  const saveOutreachDraft = useCallback(
+    (id: string, draft: Pick<OutreachDraft, "subject" | "message">) => {
+      updateState(id, (current) => ({
         ...current,
-        status,
-        activities: [{
-          id: activityId("status"), type: "status", title: "Lead status changed",
-          detail: `${current.status} → ${status}`, createdAt: new Date().toISOString(),
-        }, ...current.activities],
-      };
-    });
-  }, [updateState]);
+        outreach: {
+          ...current.outreach,
+          ...draft,
+          approved: false,
+          updatedAt: new Date().toISOString(),
+        },
+        activities: [
+          {
+            id: activityId("outreach"),
+            type: "outreach",
+            title: "Outreach draft saved",
+            detail: "Draft requires human approval before any future sending step.",
+            createdAt: new Date().toISOString(),
+          },
+          ...current.activities,
+        ],
+      }));
+    },
+    [updateState],
+  );
 
-  const updatePriority = useCallback((id: string, priority: LeadPriority) => {
-    updateState(id, (current) => current.priority === priority ? current : ({
-      ...current,
-      priority,
-      activities: [{ id: activityId("priority"), type: "priority", title: "Priority updated", detail: `${current.priority} → ${priority}`, createdAt: new Date().toISOString() }, ...current.activities],
-    }));
-  }, [updateState]);
+  const setOutreachApproved = useCallback(
+    (id: string, approved: boolean) => {
+      updateState(id, (current) =>
+        current.outreach.approved === approved
+          ? current
+          : {
+              ...current,
+              outreach: {
+                ...current.outreach,
+                approved,
+                updatedAt: new Date().toISOString(),
+              },
+              activities: [
+                {
+                  id: activityId("outreach-approval"),
+                  type: "outreach",
+                  title: approved ? "Outreach draft approved" : "Outreach approval removed",
+                  detail: approved
+                    ? "Ready for a future manual sending step."
+                    : "Draft returned to review.",
+                  createdAt: new Date().toISOString(),
+                },
+                ...current.activities,
+              ],
+            },
+      );
+    },
+    [updateState],
+  );
 
-  const updateLeadScore = useCallback((id: string, rawScore: number) => {
-    const score = Math.max(0, Math.min(100, Math.round(rawScore)));
-    updateState(id, (current) => current.leadScore === score ? current : ({
-      ...current,
-      leadScore: score,
-      priority: priorityFromScore(score),
-      activities: [{ id: activityId("score"), type: "score", title: "Lead score adjusted", detail: `${current.leadScore} → ${score}`, createdAt: new Date().toISOString() }, ...current.activities],
-    }));
-  }, [updateState]);
+  const sendToReview = useCallback(
+    (id: string) => updateStatus(id, "Needs Review"),
+    [updateStatus],
+  );
 
-  const saveNotes = useCallback((id: string, notes: string) => {
-    updateState(id, (current) => current.notes === notes ? current : ({
-      ...current,
-      notes,
-      activities: [{ id: activityId("note"), type: "note", title: "Lead notes saved", detail: notes.trim() ? "Notes were updated for human review." : "Notes were cleared.", createdAt: new Date().toISOString() }, ...current.activities],
-    }));
-  }, [updateState]);
+  const markMockupReady = useCallback(
+    (id: string) => {
+      updateState(id, (current) => {
+        if (current.mockupReady) return current;
+        const keepStatus = ["Contacted", "Qualified", "Rejected"].includes(current.status);
+        return {
+          ...current,
+          mockupReady: true,
+          status: keepStatus ? current.status : "Mockup Ready",
+          activities: [
+            {
+              id: activityId("mockup"),
+              type: "mockup",
+              title: "Mockup generated",
+              detail: "Demo website concept is ready for human review.",
+              createdAt: new Date().toISOString(),
+            },
+            ...current.activities,
+          ],
+        };
+      });
+    },
+    [updateState],
+  );
 
-  const saveOutreachDraft = useCallback((id: string, draft: Pick<OutreachDraft, "subject" | "message">) => {
-    updateState(id, (current) => ({
-      ...current,
-      outreach: { ...current.outreach, ...draft, approved: false, updatedAt: new Date().toISOString() },
-      activities: [{ id: activityId("outreach"), type: "outreach", title: "Outreach draft saved", detail: "Draft requires human approval before any future sending step.", createdAt: new Date().toISOString() }, ...current.activities],
-    }));
-  }, [updateState]);
+  const resetDemoData = useCallback(() => {
+    setBaseCompanies(seedCompanies);
+    setOverrides({});
+    setSyncError(null);
 
-  const setOutreachApproved = useCallback((id: string, approved: boolean) => {
-    updateState(id, (current) => current.outreach.approved === approved ? current : ({
-      ...current,
-      outreach: { ...current.outreach, approved, updatedAt: new Date().toISOString() },
-      activities: [{ id: activityId("outreach-approval"), type: "outreach", title: approved ? "Outreach draft approved" : "Outreach approval removed", detail: approved ? "Ready for a future manual sending step." : "Draft returned to review.", createdAt: new Date().toISOString() }, ...current.activities],
-    }));
-  }, [updateState]);
+    if (dataSource === "supabase") {
+      setSyncing(true);
+      void resetSupabaseDemoData(seedCompanies)
+        .then(syncFromSupabase)
+        .catch((error) =>
+          setSyncError(error instanceof Error ? error.message : "Supabase reset failed."),
+        )
+        .finally(() => setSyncing(false));
+    }
+  }, [dataSource, syncFromSupabase]);
 
-  const sendToReview = useCallback((id: string) => updateStatus(id, "Needs Review"), [updateStatus]);
-
-  const markMockupReady = useCallback((id: string) => {
-    updateState(id, (current) => {
-      if (current.mockupReady) return current;
-      const keepStatus = ["Contacted", "Qualified", "Rejected"].includes(current.status);
-      return {
-        ...current,
-        mockupReady: true,
-        status: keepStatus ? current.status : "Mockup Ready",
-        activities: [{ id: activityId("mockup"), type: "mockup", title: "Mockup generated", detail: "Demo website concept is ready for human review.", createdAt: new Date().toISOString() }, ...current.activities],
-      };
-    });
-  }, [updateState]);
-
-  const resetDemoData = useCallback(() => setOverrides({}), []);
-
-  const value = useMemo(() => ({
-    companies, hydrated, getCompany, getWorkflow, updateStatus, updatePriority, updateLeadScore,
-    saveNotes, saveOutreachDraft, setOutreachApproved, sendToReview, markMockupReady, resetDemoData,
-  }), [companies, hydrated, getCompany, getWorkflow, updateStatus, updatePriority, updateLeadScore, saveNotes, saveOutreachDraft, setOutreachApproved, sendToReview, markMockupReady, resetDemoData]);
+  const value = useMemo(
+    () => ({
+      companies,
+      hydrated,
+      dataSource,
+      syncing,
+      syncError,
+      getCompany,
+      getWorkflow,
+      updateStatus,
+      updatePriority,
+      updateLeadScore,
+      saveNotes,
+      saveOutreachDraft,
+      setOutreachApproved,
+      sendToReview,
+      markMockupReady,
+      syncFromSupabase,
+      resetDemoData,
+    }),
+    [
+      companies,
+      hydrated,
+      dataSource,
+      syncing,
+      syncError,
+      getCompany,
+      getWorkflow,
+      updateStatus,
+      updatePriority,
+      updateLeadScore,
+      saveNotes,
+      saveOutreachDraft,
+      setOutreachApproved,
+      sendToReview,
+      markMockupReady,
+      syncFromSupabase,
+      resetDemoData,
+    ],
+  );
 
   return <CompanyStoreContext.Provider value={value}>{children}</CompanyStoreContext.Provider>;
 }
