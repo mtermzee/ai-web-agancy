@@ -1,4 +1,4 @@
-export type GeminiAnalysisMode = "website_url_context" | "business_data_only";
+export type GeminiAnalysisMode = "website_url_context" | "stored_profile" | "business_data_only";
 
 export type GeminiWebsiteScores = {
   overall: number;
@@ -34,4 +34,5 @@ export type GeminiAnalysisResponse = {
   mode: GeminiAnalysisMode;
   sources: GeminiSource[];
   analyzedAt: string;
+  warning?: string;
 };

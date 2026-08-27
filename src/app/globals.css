@@ -470,10 +470,10 @@ textarea { font: inherit; }
 
 /* Sprint 0.7 — Gemini analysis */
 .gemini-action { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.gemini-action.compact { flex-wrap:nowrap; }
+.gemini-action.compact { flex-wrap:wrap; }
 .gemini-success { color:var(--success); font-size:11px; font-weight:700; }
 .gemini-error { max-width:320px; color:var(--danger); font-size:11px; font-weight:650; line-height:1.35; }
-.gemini-action.compact .gemini-error { max-width:55px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gemini-action.compact .gemini-error { flex-basis:100%; max-width:360px; white-space:normal; }
 .ai-panel-header { align-items:flex-start; }
 .ai-disclaimer { margin-top:14px; padding-top:12px; border-top:1px solid rgba(109,93,252,.14); color:#667085; font-size:10px; line-height:1.5; }
 .ai-analysis-intro { display:flex; gap:13px; align-items:flex-start; padding:17px 18px; margin-bottom:16px; }
@@ -488,6 +488,7 @@ textarea { font: inherit; }
 .analysis-mode { display:inline-flex; align-items:center; border-radius:999px; padding:5px 8px; font-size:10px; font-weight:800; }
 .analysis-mode.url { color:#5948d8; background:#f0edff; }
 .analysis-mode.data { color:#475467; background:#f2f4f7; }
+.analysis-mode.stored { color:#9a6700; background:#fff4cc; }
 .analysis-actions { display:flex; align-items:center; gap:7px; }
 .icon-button.small { width:34px; height:34px; }
 .muted-cell { color:var(--muted); font-size:11px; }
