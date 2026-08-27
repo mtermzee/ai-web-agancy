@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, ExternalLink, Globe2, MapPin, Phone, Sparkles, TriangleAlert } from "lucide-react";
 import { AuditScores } from "@/components/companies/AuditScores";
+import { GeminiAnalyzeButton } from "@/components/ai/GeminiAnalyzeButton";
 import { PotentialBadge, StatusBadge } from "@/components/ui/Badge";
 import { StatusSelect } from "@/components/companies/StatusSelect";
 import { useCompanyStore } from "@/components/providers/CompanyStoreProvider";
@@ -66,7 +67,7 @@ export function CompanyDetailClient({ initialCompany }: { initialCompany: Compan
       </div>
 
       <aside className="detail-stack">
-        <section className="card panel ai-box"><div className="ai-chip"><Sparkles size={13}/>Gemini analyst · simulated</div><h2>AI recommendation</h2><p>{company.aiSummary}</p><p><strong>Opportunity:</strong> {company.opportunity}</p><p><strong>Recommendation:</strong> {company.recommendation}</p></section>
+        <section className="card panel ai-box"><div className="panel-header ai-panel-header"><div><div className="ai-chip"><Sparkles size={13}/>Gemini analyst · live</div><h2>AI recommendation</h2></div><GeminiAnalyzeButton companyId={company.id} compact /></div><p>{company.aiSummary || "Run Gemini analysis to create a fresh evidence-aware recommendation."}</p><p><strong>Opportunity:</strong> {company.opportunity || "Not analyzed yet."}</p><p><strong>Recommendation:</strong> {company.recommendation || "Not analyzed yet."}</p><div className="ai-disclaimer">Website scores are AI-assisted estimates from retrievable page evidence, not Lighthouse or browser-rendering measurements.</div></section>
         <section className="card panel"><div className="panel-header"><div><h2>Suggested structure</h2><div className="panel-note">Future mockup generator input</div></div></div><ol className="structure-list">{company.suggestedStructure.map((item) => <li key={item}>{item}</li>)}</ol></section>
         <section className="card panel"><div className="panel-header"><div><h2>Sales angle</h2><div className="panel-note">Review before future outreach</div></div></div><p className="body-copy">{company.salesAngle}</p></section>
         {workflow && <section className="card panel"><div className="panel-header"><div><h2>Activity timeline</h2><div className="panel-note">Persisted history of human workflow actions</div></div></div><ActivityTimeline activities={workflow.activities}/></section>}

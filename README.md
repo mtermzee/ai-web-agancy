@@ -1,103 +1,114 @@
-# AgencyOS MVP — Sprint 0.6
+# AgencyOS — MVP Sprint 0.7
 
-AgencyOS is the interactive AI web-agency MVP built with Next.js, TypeScript and Supabase.
-Sprint 0.6 adds authentication and locks the database behind an explicit workspace membership allowlist.
+AgencyOS is a Next.js/TypeScript web-agency lead workflow prototype. Sprint 0.7 adds real, human-triggered Gemini analysis on top of the authenticated Supabase workspace introduced in 0.6.
 
-## Stack
+## What Sprint 0.7 adds
 
-- Next.js App Router
-- TypeScript / React
-- Supabase Database
-- Supabase Auth
-- `@supabase/ssr` cookie-based sessions
-- Lucide Icons
+- Google Gen AI SDK (`@google/genai`)
+- server-only `GEMINI_API_KEY`
+- default model: `gemini-3.7-flash`
+- authenticated `POST /api/ai/analyze`
+- workspace membership check before every AI run
+- Gemini structured JSON output
+- Gemini URL Context for companies with a public website
+- business-data-only analysis for companies without a website
+- automatic persistence to `website_audits`
+- automatic potential + lead-score update in `leads`
+- human lead status is never changed by Gemini
+- activity timeline entry for every successful analysis
+- optional `ai_analysis_runs` history table for traceability
+- real AI Analysis workspace at `/analysis`
+- Analyze button on every company detail page
+- no automatic outreach sending
+- no Google Search grounding in this sprint (avoids surprise search-tool costs)
 
-## What Sprint 0.6 adds
+## Important limitation
 
-- `/login` with Supabase email/password sign-in
-- Logout from the top bar
-- Server-side route protection with `auth.getClaims()`
-- Next.js `proxy.ts` session refresh
-- `workspace_members` allowlist
-- Anonymous DB access revoked
-- RLS policies restricted to authenticated workspace members
-- `/access-denied` for authenticated users who are not workspace members
-- Existing Companies / Audits / Leads / Notes / Timeline / Mockups / Outreach persistence remains intact
+URL Context can retrieve public page content, but this Sprint does not run a real browser, Lighthouse, Core Web Vitals, breakpoint tests, or screenshot-based visual QA. Design/mobile/performance scores are therefore AI-assisted estimates based on retrievable website evidence, not laboratory measurements.
 
-## 1. Install
+## Install
 
 ```bash
 npm install
 npm run dev
 ```
 
-## 2. Supabase environment variables
+## Environment variables
 
-Local `.env.local`:
+Keep your existing Supabase values and add:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://prgcclwtgbsvcxtawhyy.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_publishable_key
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+
+# Server-only. Never use NEXT_PUBLIC_ for this key.
+GEMINI_API_KEY=your_google_ai_studio_api_key
+GEMINI_MODEL=gemini-3.7-flash
 ```
 
-Set the same variables in Vercel under Project Settings -> Environment Variables.
+For Vercel, add `GEMINI_API_KEY` and optionally `GEMINI_MODEL` in Project Settings -> Environment Variables, then redeploy.
 
-## 3. Database migrations
+A consumer Gemini subscription does not substitute for the API credential used by the server route; use a Gemini API key from Google AI Studio / the Gemini API project you want billed or rate-limited.
 
-If Sprint 0.5 migration has not been run yet, run first:
+## Supabase migrations
+
+Run these in order if not already applied:
+
+1. `supabase/migrations/001_agencyos_mvp.sql`
+2. `supabase/migrations/002_auth_and_secure_rls.sql`
+3. `supabase/migrations/003_gemini_analysis_runs.sql`
+
+Migration 003 adds AI run history. The canonical analysis itself is stored in the existing `website_audits` and `leads` tables.
+
+## AI flow
 
 ```text
-supabase/migrations/001_agencyos_mvp.sql
+Human clicks Analyze
+        |
+        v
+POST /api/ai/analyze
+        |
+        +--> Supabase Auth + workspace membership
+        |
+        +--> load company from Supabase
+        |
+        +--> Gemini 3.7 Flash
+              |
+              +--> URL Context when website exists
+              +--> stored business data when no website exists
+        |
+        v
+Structured JSON
+        |
+        +--> website_audits
+        +--> leads (potential / score / priority)
+        +--> lead_activities
+        +--> ai_analysis_runs
+        |
+        v
+UI syncs from Supabase
 ```
 
-Then run:
+## Main routes
 
-```text
-supabase/migrations/002_auth_and_secure_rls.sql
-```
+- `/dashboard`
+- `/companies`
+- `/companies/[id]`
+- `/analysis`
+- `/leads`
+- `/mockups`
+- `/outreach`
+- `/settings`
 
-Migration 002 removes the permissive anonymous policies from 0.5 and adds the `workspace_members` access gate.
+## Security
 
-## 4. Create your login user
+- Gemini key is server-only.
+- The API route requires a valid Supabase session.
+- The authenticated user must be present in `workspace_members`.
+- Supabase RLS from Sprint 0.6 remains active.
+- The client never receives `GEMINI_API_KEY`.
+- Gemini analysis never sends outreach automatically.
 
-In Supabase Dashboard:
+## Next logical sprint
 
-1. Authentication -> Users
-2. Create a user with your email and password
-3. Make sure the user can sign in
-
-AgencyOS intentionally exposes no public sign-up page.
-
-## 5. Authorize the user for AgencyOS
-
-Open:
-
-```text
-supabase/setup/authorize_owner.sql
-```
-
-Replace `YOUR_LOGIN_EMAIL@example.com` with the exact Auth email and run the SQL in Supabase SQL Editor.
-
-The final verification query should show one row with role `owner`.
-
-## 6. Recommended Supabase Auth setting
-
-Because this MVP is currently a private single-workspace app, keep public user registration disabled in Supabase Auth settings. The workspace allowlist still protects the data if registration is accidentally enabled later.
-
-## 7. Deploy
-
-```bash
-git add .
-git commit -m "feat: add Supabase auth and secure RLS"
-git push
-```
-
-Vercel should deploy automatically.
-
-Open the production app. Signed-out visitors should be redirected to `/login`. After sign-in, only users present in `workspace_members` can enter the dashboard.
-
-## Security model
-
-Browser code uses only the Supabase publishable key. It is not a database secret. Authorization is enforced by Supabase Auth + Postgres grants + RLS. No service-role/secret key is included in the frontend.
-
-Current workspace model: all authorized `workspace_members` share the same AgencyOS dataset. A later SaaS/multi-tenant sprint can add `workspace_id` ownership to every domain table.
+Sprint 0.8 can add a real deterministic website auditor (browser/Lighthouse-style metrics) and feed those measurements into Gemini. After that, n8n can start inserting real leads and triggering the same analysis pipeline without rewriting the frontend.

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Database, RefreshCw, RotateCcw } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Database, RefreshCw, RotateCcw, Sparkles } from "lucide-react";
 import { useCompanyStore } from "@/components/providers/CompanyStoreProvider";
 
 export default function Page() {
@@ -21,7 +21,7 @@ export default function Page() {
           <div className="panel-header">
             <div>
               <h2>Supabase</h2>
-              <div className="panel-note">Authenticated persistence layer for Sprint 0.6</div>
+              <div className="panel-note">Authenticated persistence layer</div>
             </div>
             <span className={`badge ${dataSource === "supabase" ? "green" : "orange"}`}>
               {dataSource === "supabase" ? "Connected" : "Local fallback"}
@@ -37,7 +37,7 @@ export default function Page() {
               <p>
                 {dataSource === "supabase"
                   ? `${companies.length} companies are loaded from Supabase. CRM edits are persisted remotely.`
-                  : "The UI is using local seed data. Verify migrations 001 + 002, workspace membership and the Vercel environment variables."}
+                  : "The UI is using local seed data. Verify migrations 001–003, workspace membership and the Vercel environment variables."}
               </p>
             </div>
           </div>
@@ -63,17 +63,31 @@ export default function Page() {
         <section className="card panel">
           <div className="panel-header">
             <div>
+              <h2>Gemini</h2>
+              <div className="panel-note">Server-side AI analysis · Sprint 0.7</div>
+            </div>
+            <span className="badge purple">Server only</span>
+          </div>
+          <div className="integration-status">
+            <div className="integration-icon ai"><Sparkles size={20} /></div>
+            <div>
+              <strong>Gemini 3.7 Flash ready in code</strong>
+              <p>Add <code>GEMINI_API_KEY</code> to Vercel and local <code>.env.local</code>. The key is never exposed with a NEXT_PUBLIC_ prefix. Public websites are analyzed with URL Context.</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="card panel settings-span">
+          <div className="panel-header">
+            <div>
               <h2>Integration checklist</h2>
               <div className="panel-note">What is wired into the code now</div>
             </div>
           </div>
           <ul className="integration-list">
             {[
-              "Browser Supabase client",
-              "Server Supabase client",
+              "Browser + server Supabase clients",
               "Supabase Auth login + logout",
-              "Next.js proxy session refresh",
-              "Server-side protected routes",
               "Workspace membership gate",
               "Authenticated-only RLS policies",
               "Companies + website audits",
@@ -81,6 +95,10 @@ export default function Page() {
               "Notes + activity timeline",
               "Mockup state",
               "Outreach drafts + approval",
+              "Gemini server API route",
+              "Gemini structured JSON analysis",
+              "Website URL Context",
+              "AI analysis run history",
               "LocalStorage network fallback",
             ].map((item) => (
               <li key={item}><CheckCircle2 size={15} />{item}</li>

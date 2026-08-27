@@ -467,3 +467,34 @@ textarea { font: inherit; }
 .access-denied-card { text-align:center; }
 .access-denied-icon { width:52px; height:52px; margin:0 auto 20px; display:grid; place-items:center; border-radius:15px; background:#fef3f2; color:#b42318; }
 .access-denied-button { width:100%; justify-content:center; margin-top:6px; }
+
+/* Sprint 0.7 — Gemini analysis */
+.gemini-action { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.gemini-action.compact { flex-wrap:nowrap; }
+.gemini-success { color:var(--success); font-size:11px; font-weight:700; }
+.gemini-error { max-width:320px; color:var(--danger); font-size:11px; font-weight:650; line-height:1.35; }
+.gemini-action.compact .gemini-error { max-width:55px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ai-panel-header { align-items:flex-start; }
+.ai-disclaimer { margin-top:14px; padding-top:12px; border-top:1px solid rgba(109,93,252,.14); color:#667085; font-size:10px; line-height:1.5; }
+.ai-analysis-intro { display:flex; gap:13px; align-items:flex-start; padding:17px 18px; margin-bottom:16px; }
+.ai-analysis-intro strong { display:block; font-size:13px; }
+.ai-analysis-intro p { margin:4px 0 0; color:var(--muted); font-size:12px; line-height:1.55; }
+.ai-intro-icon { width:39px; height:39px; border-radius:11px; display:grid; place-items:center; flex:0 0 auto; color:var(--primary); background:var(--primary-soft); }
+.ai-toolbar { grid-template-columns:minmax(250px, 430px) auto !important; align-items:center; }
+.ai-count { color:var(--muted); font-size:12px; font-weight:650; }
+.company-cell-link strong, .company-cell-link span { display:block; }
+.company-cell-link strong { font-size:12px; }
+.company-cell-link span { margin-top:3px; color:var(--muted); font-size:10px; }
+.analysis-mode { display:inline-flex; align-items:center; border-radius:999px; padding:5px 8px; font-size:10px; font-weight:800; }
+.analysis-mode.url { color:#5948d8; background:#f0edff; }
+.analysis-mode.data { color:#475467; background:#f2f4f7; }
+.analysis-actions { display:flex; align-items:center; gap:7px; }
+.icon-button.small { width:34px; height:34px; }
+.muted-cell { color:var(--muted); font-size:11px; }
+.integration-icon.ai { color:var(--primary); background:var(--primary-soft); }
+.settings-span { grid-column:1/-1; }
+.settings-grid code { padding:1px 5px; border-radius:5px; background:#f2f4f7; color:#344054; font-size:11px; }
+@media (max-width: 720px) {
+  .ai-toolbar { grid-template-columns:1fr !important; }
+  .settings-span { grid-column:auto; }
+}
