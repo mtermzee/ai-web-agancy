@@ -106,15 +106,14 @@ export async function generateMockupWithGemini(company: Company): Promise<Mockup
   const preset = getIndustryPreset(company.industry, company.city);
 
   if (!apiKey) {
-    return fallback;
+    throw new Error("GEMINI_API_KEY ist nicht auf dem Server konfiguriert.");
   }
 
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
+  const ai = new GoogleGenAI({ apiKey });
+  const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
 
-    const prompt = `Du bist ein hochbezahlter Senior Conversion-Copywriter für lokale Premium-Websites.
-Erstelle für das folgende lokale Unternehmen ein verkaufsstarkes, vertrauenerweckendes Website-Konzept auf Deutsch (oder in der jeweiligen Landessprache des Unternehmens).
+  const prompt = `Du bist ein hochbezahlter Senior Conversion-Copywriter für lokale Premium-Websites.
+Erstelle für das folgende lokale Unternehmen ein verkaufsstarkes, individuelles und vertrauenerweckendes Website-Konzept auf Deutsch (oder in der jeweiligen Landessprache des Unternehmens).
 
 UNTERNEHMEN:
 - Name: ${company.name}
@@ -125,6 +124,8 @@ UNTERNEHMEN:
 - E-Mail: ${company.email || "Auf Anfrage"}
 - Bisherige Website: ${company.website || "Keine Website vorhanden"}
 - Bisherige Probleme / Chancen: ${company.problems?.join(", ") || "Keine bekannt"}
+- KI-Analyse Zusammenfassung: ${company.aiSummary || "Keine"}
+- Empfehlung: ${company.recommendation || "Keine"}
 - Verkaufsansatz: ${company.salesAngle || "Direkte Neukundengewinnung & Vertrauensaufbau"}
 
 ANFORDERUNGEN:
@@ -147,64 +148,62 @@ ANFORDERUNGEN:
 
 Antworte ausschließlich im validen JSON-Format.`;
 
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: mockupResponseSchema,
-      },
-    });
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: mockupResponseSchema,
+    },
+  });
 
-    const text = response.text?.trim();
-    if (!text) return fallback;
-
-    let parsed: Partial<MockupContent>;
-    try {
-      const cleanJson = extractJsonString(text);
-      parsed = JSON.parse(cleanJson) as Partial<MockupContent>;
-    } catch (parseErr) {
-      console.warn("[Gemini Mockup Generation] JSON parse failed, using fallback:", parseErr);
-      return fallback;
-    }
-
-    return {
-      theme: preset.defaultTheme,
-      heroKicker: parsed.heroKicker || fallback.heroKicker,
-      heroTitle: parsed.heroTitle || fallback.heroTitle,
-      heroDescription: parsed.heroDescription || fallback.heroDescription,
-      heroCta: parsed.heroCta || fallback.heroCta,
-      heroSecondaryCta: parsed.heroSecondaryCta || fallback.heroSecondaryCta,
-      heroImage: preset.heroImage,
-      servicesTitle: parsed.servicesTitle || fallback.servicesTitle,
-      servicesSubtitle: parsed.servicesSubtitle || fallback.servicesSubtitle,
-      services: (parsed.services && parsed.services.length >= 2
-        ? parsed.services
-        : fallback.services
-      ).map((s, idx) => ({
-        title: s.title,
-        description: s.description,
-        tag: s.tag,
-        image: preset.serviceImages[idx] || preset.serviceImages[0],
-      })),
-      aboutTitle: parsed.aboutTitle || fallback.aboutTitle,
-      aboutText: parsed.aboutText || fallback.aboutText,
-      aboutImage: preset.aboutImage,
-      aboutPoints:
-        parsed.aboutPoints && parsed.aboutPoints.length >= 2
-          ? parsed.aboutPoints
-          : fallback.aboutPoints,
-      testimonialsTitle: parsed.testimonialsTitle || fallback.testimonialsTitle,
-      testimonials:
-        parsed.testimonials && parsed.testimonials.length >= 1
-          ? parsed.testimonials.map((t) => ({ ...t, rating: 5 }))
-          : fallback.testimonials,
-      ctaTitle: parsed.ctaTitle || fallback.ctaTitle,
-      ctaText: parsed.ctaText || fallback.ctaText,
-      ctaButton: parsed.ctaButton || fallback.ctaButton,
-    };
-  } catch (error) {
-    console.warn("[Gemini Mockup Generation Fallback]", error);
-    return fallback;
+  const text = response.text?.trim();
+  if (!text) {
+    throw new Error("Gemini hat keine Textausgabe für das Mockup zurückgegeben.");
   }
+
+  let parsed: Partial<MockupContent>;
+  try {
+    const cleanJson = extractJsonString(text);
+    parsed = JSON.parse(cleanJson) as Partial<MockupContent>;
+  } catch (parseErr) {
+    console.error("[Gemini Mockup Generation] JSON parse error:", parseErr, "\nRaw:", text);
+    throw new Error("Gemini JSON-Antwort konnte nicht verarbeitet werden.");
+  }
+
+  return {
+    theme: preset.defaultTheme,
+    heroKicker: parsed.heroKicker || fallback.heroKicker,
+    heroTitle: parsed.heroTitle || fallback.heroTitle,
+    heroDescription: parsed.heroDescription || fallback.heroDescription,
+    heroCta: parsed.heroCta || fallback.heroCta,
+    heroSecondaryCta: parsed.heroSecondaryCta || fallback.heroSecondaryCta,
+    heroImage: preset.heroImage,
+    servicesTitle: parsed.servicesTitle || fallback.servicesTitle,
+    servicesSubtitle: parsed.servicesSubtitle || fallback.servicesSubtitle,
+    services: (parsed.services && parsed.services.length >= 2
+      ? parsed.services
+      : fallback.services
+    ).map((s, idx) => ({
+      title: s.title,
+      description: s.description,
+      tag: s.tag,
+      image: preset.serviceImages[idx] || preset.serviceImages[0],
+    })),
+    aboutTitle: parsed.aboutTitle || fallback.aboutTitle,
+    aboutText: parsed.aboutText || fallback.aboutText,
+    aboutImage: preset.aboutImage,
+    aboutPoints:
+      parsed.aboutPoints && parsed.aboutPoints.length >= 2
+        ? parsed.aboutPoints
+        : fallback.aboutPoints,
+    testimonialsTitle: parsed.testimonialsTitle || fallback.testimonialsTitle,
+    testimonials:
+      parsed.testimonials && parsed.testimonials.length >= 1
+        ? parsed.testimonials.map((t) => ({ ...t, rating: 5 }))
+        : fallback.testimonials,
+    ctaTitle: parsed.ctaTitle || fallback.ctaTitle,
+    ctaText: parsed.ctaText || fallback.ctaText,
+    ctaButton: parsed.ctaButton || fallback.ctaButton,
+  };
 }

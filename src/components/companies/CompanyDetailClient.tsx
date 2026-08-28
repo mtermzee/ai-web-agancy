@@ -40,6 +40,7 @@ export function CompanyDetailClient({ initialCompany }: { initialCompany: Compan
   const company = getCompany(initialCompany.id) ?? initialCompany;
   const workflow = getWorkflow(company.id);
   const [generating, setGenerating] = useState(false);
+  const [mockupError, setMockupError] = useState<string | null>(null);
 
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
@@ -56,14 +57,18 @@ export function CompanyDetailClient({ initialCompany }: { initialCompany: Compan
   const generateMockup = async () => {
     if (generating) return;
     setGenerating(true);
+    setMockupError(null);
     try {
       const res = await fetch("/api/ai/generate-mockup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company }),
+        body: JSON.stringify({ company, companyId: company.id }),
       });
       const data = await res.json();
-      if (data.ok && data.mockupContent && typeof window !== "undefined") {
+      if (!res.ok || !data.ok || !data.mockupContent) {
+        throw new Error(data.error || "Mockup-Generierung fehlgeschlagen.");
+      }
+      if (typeof window !== "undefined") {
         window.localStorage.setItem(
           `agencyos-mockup-${company.id}`,
           JSON.stringify(data.mockupContent),
@@ -72,9 +77,9 @@ export function CompanyDetailClient({ initialCompany }: { initialCompany: Compan
       markMockupReady(company.id);
       router.push(`/companies/${company.id}/mockup`);
     } catch (err) {
-      console.warn("Mockup generation failed, navigating to studio", err);
-      markMockupReady(company.id);
-      router.push(`/companies/${company.id}/mockup`);
+      const msg = err instanceof Error ? err.message : "Mockup-Generierung fehlgeschlagen.";
+      setMockupError(msg);
+      console.error("Mockup generation failed:", err);
     } finally {
       setGenerating(false);
     }
@@ -150,6 +155,13 @@ export function CompanyDetailClient({ initialCompany }: { initialCompany: Compan
           </button>
         </div>
       </div>
+
+      {mockupError && (
+        <div style={{ margin: "12px 0", padding: "10px 16px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", color: "#991b1b", fontSize: "13px", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>⚠️ {mockupError}</span>
+          <button onClick={() => setMockupError(null)} style={{ background: "none", border: "none", color: "#991b1b", cursor: "pointer", fontSize: "15px" }}>✕</button>
+        </div>
+      )}
 
       {workflow && (
         <section className="company-command-strip card">

@@ -47,6 +47,8 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
   const [isEditing, setIsEditing] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Initialize theme and content from localStorage or default preset
   useEffect(() => {
@@ -66,7 +68,7 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
     const defaultContent = generateDefaultMockupContent(company);
     setContent(defaultContent);
     setTheme(defaultContent.theme);
-  }, [company]);
+  }, [company.id]);
 
   // Save changes to localStorage
   const updateAndSaveContent = (next: MockupContent) => {
@@ -81,24 +83,32 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
   const handleGenerateAI = async () => {
     if (generating) return;
     setGenerating(true);
+    setErrorMessage(null);
+    setFeedbackMessage(null);
 
     try {
       const res = await fetch("/api/ai/generate-mockup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company }),
+        body: JSON.stringify({ company, companyId: company.id }),
       });
 
       const data = await res.json();
-      if (data.ok && data.mockupContent) {
-        updateAndSaveContent(data.mockupContent);
-        if (data.mockupContent.theme) {
-          setTheme(data.mockupContent.theme);
-        }
+      if (!res.ok || !data.ok || !data.mockupContent) {
+        throw new Error(data.error || `KI-Generierung fehlgeschlagen (${res.status})`);
+      }
+
+      updateAndSaveContent(data.mockupContent);
+      if (data.mockupContent.theme) {
+        setTheme(data.mockupContent.theme);
       }
       markMockupReady(company.id);
+      setFeedbackMessage("KI-Konzept erfolgreich neu generiert!");
+      setTimeout(() => setFeedbackMessage(null), 4000);
     } catch (err) {
-      console.warn("AI generation error, using preset", err);
+      const msg = err instanceof Error ? err.message : "KI-Generierung fehlgeschlagen";
+      setErrorMessage(msg);
+      console.error("AI generation error:", err);
     } finally {
       setGenerating(false);
     }
@@ -227,6 +237,41 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
           </button>
         </div>
       </div>
+
+      {/* Feedback & Error Banners */}
+      {(feedbackMessage || errorMessage) && (
+        <div
+          style={{
+            padding: "8px 24px",
+            background: feedbackMessage ? "#f0fdf4" : "#fef2f2",
+            borderBottom: `1px solid ${feedbackMessage ? "#bbf7d0" : "#fecaca"}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontSize: "13px",
+          }}
+        >
+          <span style={{ color: feedbackMessage ? "#166534" : "#991b1b", fontWeight: 600 }}>
+            {feedbackMessage ? `✨ ${feedbackMessage}` : `⚠️ ${errorMessage}`}
+          </span>
+          <button
+            onClick={() => {
+              setFeedbackMessage(null);
+              setErrorMessage(null);
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: feedbackMessage ? "#166534" : "#991b1b",
+              fontSize: "16px",
+              padding: "0 4px",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Main Studio Frame Container */}
       <div className="studio-canvas-container">
