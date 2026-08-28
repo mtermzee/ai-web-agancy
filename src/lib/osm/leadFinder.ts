@@ -449,7 +449,6 @@ export async function searchOpenStreetMapLeads({
   const industryLabel = customQuery?.trim() || config.defaultCategory;
   const targetFetchCount = Math.max(limit * 2, 80);
 
-  let rawElements: Array<{ id: number | string; tags?: Record<string, string> }> = [];
   let detectedCountry = "Deutschland";
 
   // 1. Geocode City Coordinates and Bounding Box
@@ -463,7 +462,7 @@ export async function searchOpenStreetMapLeads({
   try {
     const geoUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(cleanCity)}&limit=1`;
     const geoRes = await fetch(geoUrl, {
-      headers: { "User-Agent": "AgencyOS-LeadFinder/2.0" },
+      headers: { "User-Agent": "AgencyOS-LeadFinder/3.0 (contact@agencyos.local)" },
       signal: AbortSignal.timeout(3500),
     });
     if (geoRes.ok) {
@@ -495,7 +494,27 @@ export async function searchOpenStreetMapLeads({
   const searchTerm = customQuery?.trim() || config.searchQueries[0] || "Business";
   const photonTag = config.photonTag;
 
-  const photonPromises: Promise<void>[] = [];
+  type RawFeature = {
+    geometry: { coordinates: [number, number] };
+    properties: {
+      name?: string;
+      street?: string;
+      housenumber?: string;
+      postcode?: string;
+      city?: string;
+      district?: string;
+      state?: string;
+      country?: string;
+      osm_id?: number;
+      osm_type?: "N" | "W" | "R";
+      phone?: string;
+      email?: string;
+      website?: string;
+      extra?: Record<string, unknown>;
+    };
+  };
+
+  const rawFeatures: RawFeature[] = [];
 
   if (lat !== 0 && lon !== 0) {
     const tagParam = photonTag ? `&osm_tag=${encodeURIComponent(photonTag)}` : "";
@@ -503,212 +522,179 @@ export async function searchOpenStreetMapLeads({
       searchTerm,
     )}&lat=${lat}&lon=${lon}&limit=${targetFetchCount}${tagParam}`;
 
-    photonPromises.push(
-      (async () => {
-        try {
-          const res = await fetch(photonUrl, {
-            headers: { "User-Agent": "AgencyOS-LeadFinder/2.0" },
-            signal: AbortSignal.timeout(4500),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            for (const f of data.features || []) {
-              const p = f.properties || {};
-              if (!p.name) continue;
+    try {
+      const res = await fetch(photonUrl, {
+        headers: { "User-Agent": "AgencyOS-LeadFinder/3.0 (contact@agencyos.local)" },
+        signal: AbortSignal.timeout(4500),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        for (const f of (data.features as RawFeature[]) || []) {
+          const p = f.properties || {};
+          if (!p.name) continue;
 
-              // STRICT GEOFENCE: Check coordinates vs city bounding box & city name
-              const [fLon, fLat] = f.geometry?.coordinates || [0, 0];
-              const itemCity = (p.city || p.district || p.state || "").trim().toLowerCase();
-              const targetCityNorm = cleanCity.toLowerCase().trim();
+          // STRICT GEOFENCE: Check coordinates vs city bounding box & city name
+          const [fLon, fLat] = f.geometry?.coordinates || [0, 0];
+          const itemCity = (p.city || p.district || p.state || "").trim().toLowerCase();
+          const targetCityNorm = cleanCity.toLowerCase().trim();
 
-              const isInsideBbox =
-                fLat >= Math.min(minLat, maxLat) - 0.03 &&
-                fLat <= Math.max(minLat, maxLat) + 0.03 &&
-                fLon >= Math.min(minLon, maxLon) - 0.03 &&
-                fLon <= Math.max(minLon, maxLon) + 0.03;
+          const isInsideBbox =
+            fLat >= Math.min(minLat, maxLat) - 0.03 &&
+            fLat <= Math.max(minLat, maxLat) + 0.03 &&
+            fLon >= Math.min(minLon, maxLon) - 0.03 &&
+            fLon <= Math.max(minLon, maxLon) + 0.03;
 
-              const isCityMatch =
-                itemCity.includes(targetCityNorm) ||
-                targetCityNorm.includes(itemCity);
+          const isCityMatch =
+            itemCity.includes(targetCityNorm) ||
+            targetCityNorm.includes(itemCity);
 
-              // Discard items from unrelated cities outside bounding box
-              if (!isInsideBbox && !isCityMatch) {
-                continue;
-              }
-
-              rawElements.push({
-                id: p.osm_id || Math.floor(Math.random() * 10000000),
-                tags: {
-                  name: p.name,
-                  "addr:street": p.street || "",
-                  "addr:housenumber": p.housenumber || "",
-                  "addr:postcode": p.postcode || "",
-                  "addr:city": p.city || cleanCity,
-                  "addr:country": p.country || detectedCountry,
-                  phone:
-                    p.phone ||
-                    (p.extra?.phone as string) ||
-                    (p.extra?.["contact:phone"] as string) ||
-                    "",
-                  email:
-                    p.email ||
-                    (p.extra?.email as string) ||
-                    (p.extra?.["contact:email"] as string) ||
-                    "",
-                  website:
-                    p.website ||
-                    (p.extra?.website as string) ||
-                    (p.extra?.["contact:website"] as string) ||
-                    "",
-                  ...(p.extra || {}),
-                },
-              });
-            }
+          if (!isInsideBbox && !isCityMatch) {
+            continue;
           }
-        } catch (e) {
-          console.warn("[Photon Search Error]", e);
-        }
-      })(),
-    );
 
-    // Query secondary term
-    if (config.searchQueries[1] && !customQuery) {
-      const secondTerm = config.searchQueries[1];
-      const secondUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
-        secondTerm,
-      )}&lat=${lat}&lon=${lon}&limit=${targetFetchCount}${tagParam}`;
-      photonPromises.push(
+          rawFeatures.push(f);
+        }
+      }
+    } catch (e) {
+      console.warn("[Photon Search Error]", e);
+    }
+  }
+
+  // 3. Batch Enrich Features via Official OSM API to get 100% full tags (Phone, Web, Email, Postcode)
+  const nodeIds: number[] = [];
+  const wayIds: number[] = [];
+
+  for (const f of rawFeatures) {
+    const p = f.properties;
+    if (p.osm_id) {
+      if (p.osm_type === "N") nodeIds.push(p.osm_id);
+      else if (p.osm_type === "W") wayIds.push(p.osm_id);
+    }
+  }
+
+  const tagMap = new Map<string, Record<string, string>>();
+  const enrichPromises: Promise<void>[] = [];
+
+  // Batch query nodes in chunks of 40
+  if (nodeIds.length > 0) {
+    for (let i = 0; i < nodeIds.length; i += 40) {
+      const chunk = nodeIds.slice(i, i + 40);
+      enrichPromises.push(
         (async () => {
           try {
-            const res = await fetch(secondUrl, {
-              headers: { "User-Agent": "AgencyOS-LeadFinder/2.0" },
-              signal: AbortSignal.timeout(4500),
-            });
+            const res = await fetch(
+              `https://api.openstreetmap.org/api/0.6/nodes.json?nodes=${chunk.join(",")}`,
+              {
+                headers: { "User-Agent": "AgencyOS-LeadFinder/3.0 (contact@agencyos.local)" },
+                signal: AbortSignal.timeout(3500),
+              },
+            );
             if (res.ok) {
               const data = await res.json();
-              for (const f of data.features || []) {
-                const p = f.properties || {};
-                if (!p.name) continue;
-
-                const [fLon, fLat] = f.geometry?.coordinates || [0, 0];
-                const itemCity = (p.city || p.district || p.state || "").trim().toLowerCase();
-                const targetCityNorm = cleanCity.toLowerCase().trim();
-
-                const isInsideBbox =
-                  fLat >= Math.min(minLat, maxLat) - 0.03 &&
-                  fLat <= Math.max(minLat, maxLat) + 0.03 &&
-                  fLon >= Math.min(minLon, maxLon) - 0.03 &&
-                  fLon <= Math.max(minLon, maxLon) + 0.03;
-
-                const isCityMatch =
-                  itemCity.includes(targetCityNorm) ||
-                  targetCityNorm.includes(itemCity);
-
-                if (!isInsideBbox && !isCityMatch) {
-                  continue;
-                }
-
-                rawElements.push({
-                  id: p.osm_id || Math.floor(Math.random() * 10000000),
-                  tags: {
-                    name: p.name,
-                    "addr:street": p.street || "",
-                    "addr:housenumber": p.housenumber || "",
-                    "addr:postcode": p.postcode || "",
-                    "addr:city": p.city || cleanCity,
-                    "addr:country": p.country || detectedCountry,
-                    phone:
-                      p.phone ||
-                      (p.extra?.phone as string) ||
-                      (p.extra?.["contact:phone"] as string) ||
-                      "",
-                    email:
-                      p.email ||
-                      (p.extra?.email as string) ||
-                      (p.extra?.["contact:email"] as string) ||
-                      "",
-                    website:
-                      p.website ||
-                      (p.extra?.website as string) ||
-                      (p.extra?.["contact:website"] as string) ||
-                      "",
-                    ...(p.extra || {}),
-                  },
-                });
+              for (const el of (data.elements as Array<{ id: number; tags?: Record<string, string> }>) || []) {
+                if (el.tags) tagMap.set(`N${el.id}`, el.tags);
               }
             }
           } catch {
-            // Ignore
+            // Ignore timeout
           }
         })(),
       );
     }
   }
 
-  // 3. Query Nominatim with bounded viewbox
-  const nomQueries = customQuery ? [customQuery] : config.searchQueries.slice(0, 2);
-  const bboxClause =
-    minLon !== -180
-      ? `&viewbox=${minLon},${maxLat},${maxLon},${minLat}&bounded=1`
-      : "";
-
-  const nomPromises = nomQueries.map(async (q) => {
-    try {
-      const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-        `${q} in ${cleanCity}`,
-      )}&format=json&addressdetails=1&extratags=1&limit=50${bboxClause}`;
-      const res = await fetch(nomUrl, {
-        headers: { "User-Agent": "AgencyOS-LeadFinder/2.0 (contact@agencyos.local)" },
-        signal: AbortSignal.timeout(4500),
-      });
-      if (res.ok) {
-        const nomData = await res.json();
-        if (Array.isArray(nomData)) {
-          for (const item of nomData) {
-            const itemCity = (
-              item.address?.city ||
-              item.address?.town ||
-              item.address?.village ||
-              cleanCity
-            ).trim();
-
-            rawElements.push({
-              id: item.osm_id || Math.floor(Math.random() * 10000000),
-              tags: {
-                name: item.name || item.display_name?.split(",")[0] || "",
-                ...(item.extratags || {}),
-                "addr:street": item.address?.road || "",
-                "addr:housenumber": item.address?.house_number || "",
-                "addr:postcode": item.address?.postcode || "",
-                "addr:city": itemCity,
-                "addr:country": item.address?.country || detectedCountry,
-                phone:
-                  item.extratags?.phone ||
-                  item.extratags?.["contact:phone"] ||
-                  item.extratags?.["phone:mobile"] ||
-                  "",
-                email:
-                  item.extratags?.email ||
-                  item.extratags?.["contact:email"] ||
-                  "",
-                website:
-                  item.extratags?.website ||
-                  item.extratags?.["contact:website"] ||
-                  item.extratags?.url ||
-                  "",
+  // Batch query ways in chunks of 40
+  if (wayIds.length > 0) {
+    for (let i = 0; i < wayIds.length; i += 40) {
+      const chunk = wayIds.slice(i, i + 40);
+      enrichPromises.push(
+        (async () => {
+          try {
+            const res = await fetch(
+              `https://api.openstreetmap.org/api/0.6/ways.json?ways=${chunk.join(",")}`,
+              {
+                headers: { "User-Agent": "AgencyOS-LeadFinder/3.0 (contact@agencyos.local)" },
+                signal: AbortSignal.timeout(3500),
               },
-            });
+            );
+            if (res.ok) {
+              const data = await res.json();
+              for (const el of (data.elements as Array<{ id: number; tags?: Record<string, string> }>) || []) {
+                if (el.tags) tagMap.set(`W${el.id}`, el.tags);
+              }
+            }
+          } catch {
+            // Ignore timeout
           }
-        }
-      }
-    } catch (e) {
-      console.warn("[Nominatim Fetch Error]", e);
+        })(),
+      );
     }
-  });
+  }
 
-  await Promise.allSettled([...photonPromises, ...nomPromises]);
+  await Promise.allSettled(enrichPromises);
 
-  // 4. Parse, Deduplicate and Filter
+  // 4. Merge enriched OSM tags into company objects
+  const rawElements: Array<{ id: number | string; tags?: Record<string, string> }> = [];
+
+  for (const f of rawFeatures) {
+    const p = f.properties;
+    const key = `${p.osm_type || "N"}${p.osm_id}`;
+    const rawTags = tagMap.get(key) || {};
+
+    const phone =
+      rawTags.phone ||
+      rawTags["contact:phone"] ||
+      rawTags["phone:mobile"] ||
+      rawTags["contact:mobile"] ||
+      rawTags["contact:telephone"] ||
+      rawTags["tel"] ||
+      p.phone ||
+      (p.extra?.phone as string) ||
+      "";
+
+    const website =
+      rawTags.website ||
+      rawTags["contact:website"] ||
+      rawTags.url ||
+      rawTags["contact:url"] ||
+      rawTags["brand:website"] ||
+      rawTags["website:de"] ||
+      p.website ||
+      (p.extra?.website as string) ||
+      "";
+
+    const email =
+      rawTags.email ||
+      rawTags["contact:email"] ||
+      rawTags["email:contact"] ||
+      p.email ||
+      (p.extra?.email as string) ||
+      "";
+
+    const street = rawTags["addr:street"] || p.street || "";
+    const housenumber = rawTags["addr:housenumber"] || p.housenumber || "";
+    const postcode = rawTags["addr:postcode"] || p.postcode || "";
+    const city = rawTags["addr:city"] || p.city || cleanCity;
+
+    rawElements.push({
+      id: p.osm_id || Math.floor(Math.random() * 10000000),
+      tags: {
+        name: p.name || "",
+        "addr:street": street,
+        "addr:housenumber": housenumber,
+        "addr:postcode": postcode,
+        "addr:city": city,
+        "addr:country": p.country || detectedCountry,
+        phone,
+        email,
+        website,
+        ...(p.extra || {}),
+        ...rawTags,
+      },
+    });
+  }
+
+  // 5. Parse, Deduplicate and Filter
   const seen = new Set<string>();
   const results: Company[] = [];
 
