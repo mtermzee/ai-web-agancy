@@ -1,7 +1,7 @@
 import type { LeadStatus } from "@/types/company";
 
 export type LeadPriority = "Low" | "Normal" | "High" | "Urgent";
-export type ActivityType = "analysis" | "status" | "priority" | "score" | "note" | "mockup" | "outreach";
+export type ActivityType = "analysis" | "status" | "priority" | "score" | "note" | "mockup" | "outreach" | "lead";
 
 export type LeadActivity = {
   id: string;

@@ -329,6 +329,7 @@ textarea { font: inherit; }
 .activity-icon.outreach { color:#b54708; background:#fffaeb; }
 .activity-icon.note { color:#344054; background:#f2f4f7; }
 .activity-icon.status { color:#067647; background:#ecfdf3; }
+.activity-icon.lead { color:#0f766e; background:#f0fdfa; }
 .activity-icon.priority { color:#c4320a; background:#fff4ed; }
 .activity-title { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
 .activity-title strong { font-size:12px; }
