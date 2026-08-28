@@ -20,8 +20,10 @@ import {
   Palette,
   Pencil,
   Phone,
+  Plus,
   RotateCcw,
   Save,
+  Search,
   Send,
   Share2,
   Smartphone,
@@ -79,10 +81,12 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
     notes: "",
   });
 
-  // Dynamic Image Picker State
+  // Dynamic Image Picker & Search / Pagination State
   const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
   const [activeImageTarget, setActiveImageTarget] = useState<ImageTarget>("hero");
   const [selectedGalleryCategory, setSelectedGalleryCategory] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [visibleImageCount, setVisibleImageCount] = useState(12);
   const [customImageUrlInput, setCustomImageUrlInput] = useState("");
 
   // Initialize theme and content from localStorage or default preset
@@ -1827,56 +1831,171 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                     );
                   })()}
 
+                  {/* Live Search Bar */}
+                  <div>
+                    <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: 6 }}>
+                      KOSTENLOSE BILDER DURCHSUCHEN:
+                    </span>
+                    <div className="gallery-search-bar-wrap">
+                      <Search size={16} color="#64748b" />
+                      <input
+                        className="gallery-search-input"
+                        placeholder="Suchbegriff eingeben (z. B. Zahnarzt, Haare, Barber, Küche, Dach, Garten, Auto)..."
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setVisibleImageCount(12);
+                        }}
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          className="mock-close-btn"
+                          style={{ padding: "2px 6px", fontSize: "0.75rem" }}
+                          onClick={() => {
+                            setSearchQuery("");
+                            setVisibleImageCount(12);
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Industry Filter Chips */}
                   <div>
                     <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: 8 }}>
-                      BRANCHE FILTERN:
+                      NACH BRANCHE FILTERN:
                     </span>
                     <div className="industry-filter-chips">
                       <button
-                        className={`industry-filter-btn ${selectedGalleryCategory === "all" ? "active" : ""}`}
-                        onClick={() => setSelectedGalleryCategory("all")}
+                        className={`industry-filter-btn ${selectedGalleryCategory === "all" && !searchQuery ? "active" : ""}`}
+                        onClick={() => {
+                          setSelectedGalleryCategory("all");
+                          setSearchQuery("");
+                          setVisibleImageCount(12);
+                        }}
                       >
-                        🌐 Alle Branchen
+                        🌐 Alle Fotos ({INDUSTRY_GALLERY_PACKS.reduce((acc, p) => acc + p.gallery.length, 0)})
                       </button>
                       {INDUSTRY_GALLERY_PACKS.map((pack) => (
                         <button
                           key={pack.id}
-                          className={`industry-filter-btn ${selectedGalleryCategory === pack.id ? "active" : ""}`}
-                          onClick={() => setSelectedGalleryCategory(pack.id)}
+                          className={`industry-filter-btn ${selectedGalleryCategory === pack.id && !searchQuery ? "active" : ""}`}
+                          onClick={() => {
+                            setSelectedGalleryCategory(pack.id);
+                            setSearchQuery("");
+                            setVisibleImageCount(12);
+                          }}
                         >
-                          <span>{pack.icon}</span> {pack.name}
+                          <span>{pack.icon}</span> {pack.name} ({pack.gallery.length})
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Gallery Image Grid */}
-                  <div>
-                    <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: 8 }}>
-                      KLICKE AUF EIN FOTO ZUM ERSETZEN:
-                    </span>
-                    <div className="gallery-grid">
-                      {(selectedGalleryCategory === "all"
-                        ? INDUSTRY_GALLERY_PACKS.flatMap((p) => p.gallery.map((img) => ({ img, name: p.name })))
-                        : (INDUSTRY_GALLERY_PACKS.find((p) => p.id === selectedGalleryCategory)?.gallery || []).map((img) => ({
-                            img,
-                            name: selectedGalleryCategory,
-                          }))
-                      ).map((item, gIdx) => (
-                        <div
-                          key={gIdx}
-                          className="gallery-thumb-card"
-                          onClick={() => handleApplyImage(item.img)}
-                        >
-                          <img src={item.img} alt={item.name} />
-                          <div className="thumb-hover-overlay">
-                            <span>Als {activeImageTarget} wählen ✓</span>
-                          </div>
+                  {/* Gallery Image Grid with Filter & Load More */}
+                  {(() => {
+                    const allItems =
+                      selectedGalleryCategory === "all" || searchQuery.trim()
+                        ? INDUSTRY_GALLERY_PACKS.flatMap((p) =>
+                            p.gallery.map((img) => ({
+                              img,
+                              name: p.name,
+                              category: p.category,
+                              id: p.id,
+                            }))
+                          )
+                        : (
+                            INDUSTRY_GALLERY_PACKS.find((p) => p.id === selectedGalleryCategory)
+                              ?.gallery || []
+                          ).map((img) => {
+                            const pack = INDUSTRY_GALLERY_PACKS.find(
+                              (p) => p.id === selectedGalleryCategory,
+                            );
+                            return {
+                              img,
+                              name: pack?.name || selectedGalleryCategory,
+                              category: pack?.category || "",
+                              id: pack?.id || "",
+                            };
+                          });
+
+                    const filtered = allItems.filter((item) => {
+                      if (!searchQuery.trim()) return true;
+                      const q = searchQuery.toLowerCase().trim();
+                      return (
+                        item.name.toLowerCase().includes(q) ||
+                        item.category.toLowerCase().includes(q) ||
+                        item.id.toLowerCase().includes(q)
+                      );
+                    });
+
+                    const displayed = filtered.slice(0, visibleImageCount);
+                    const hasMore = visibleImageCount < filtered.length;
+
+                    return (
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                          <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b" }}>
+                            KLICKE AUF EIN FOTO ZUM ERSETZEN:
+                          </span>
+                          <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600 }}>
+                            {displayed.length} von {filtered.length} Bildern angezeigt
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+
+                        {displayed.length === 0 ? (
+                          <div style={{ padding: "30px 20px", textAlign: "center", background: "#f8fafc", borderRadius: 12, border: "1px dashed #cbd5e1" }}>
+                            <p style={{ color: "#64748b", margin: "0 0 8px", fontSize: "0.9rem" }}>
+                              Keine Bilder für „{searchQuery}“ gefunden.
+                            </p>
+                            <button
+                              className="button secondary compact"
+                              onClick={() => {
+                                setSearchQuery("");
+                                setSelectedGalleryCategory("all");
+                              }}
+                            >
+                              Filter zurücksetzen
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="gallery-grid">
+                            {displayed.map((item, gIdx) => (
+                              <div
+                                key={gIdx}
+                                className="gallery-thumb-card"
+                                onClick={() => handleApplyImage(item.img)}
+                              >
+                                <img src={item.img} alt={item.name} loading="lazy" />
+                                <div className="thumb-hover-overlay">
+                                  <span>Als {activeImageTarget} wählen ✓</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Load More Button */}
+                        {hasMore && (
+                          <div className="load-more-container">
+                            <button
+                              type="button"
+                              className="load-more-btn"
+                              onClick={() => setVisibleImageCount((prev) => prev + 12)}
+                            >
+                              <Plus size={16} />
+                              <span>
+                                Mehr kostenlose Bilder laden ({displayed.length} von {filtered.length})
+                              </span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Custom URL Input */}
                   <div className="custom-url-box">
