@@ -447,11 +447,11 @@ export async function searchOpenStreetMapLeads({
 
   const config = INDUSTRY_CONFIG[industry] || INDUSTRY_CONFIG.all;
   const industryLabel = customQuery?.trim() || config.defaultCategory;
-  const targetFetchCount = Math.max(limit * 2, 80);
+  const targetFetchCount = Math.max(limit * 2, 100);
 
   let detectedCountry = "Deutschland";
 
-  // 1. Geocode City Coordinates and Bounding Box
+  // 1. Geocode City Coordinates & Metro Extent
   let lat = 0;
   let lon = 0;
   let minLon = -180;
@@ -478,21 +478,17 @@ export async function searchOpenStreetMapLeads({
         if (Array.isArray(extent) && extent.length === 4) {
           [minLon, maxLat, maxLon, minLat] = extent;
         } else {
-          // Fallback bounding box (~14km radius)
-          minLon = lon - 0.15;
-          maxLon = lon + 0.15;
-          minLat = lat - 0.12;
-          maxLat = lat + 0.12;
+          // Generous metro box (~20km radius)
+          minLon = lon - 0.18;
+          maxLon = lon + 0.18;
+          minLat = lat - 0.14;
+          maxLat = lat + 0.14;
         }
       }
     }
   } catch (err) {
     console.warn("[Photon Geocode Error]", err);
   }
-
-  // 2. Query Photon with Industry Tag and Lat/Lon
-  const searchTerm = customQuery?.trim() || config.searchQueries[0] || "Business";
-  const photonTag = config.photonTag;
 
   type RawFeature = {
     geometry: { coordinates: [number, number] };
@@ -517,54 +513,102 @@ export async function searchOpenStreetMapLeads({
   const rawFeatures: RawFeature[] = [];
 
   if (lat !== 0 && lon !== 0) {
-    const tagParam = photonTag ? `&osm_tag=${encodeURIComponent(photonTag)}` : "";
-    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
-      searchTerm,
-    )}&lat=${lat}&lon=${lon}&limit=${targetFetchCount}${tagParam}`;
+    const fetchPromises: Promise<void>[] = [];
 
-    try {
-      const res = await fetch(photonUrl, {
-        headers: { "User-Agent": "AgencyOS-LeadFinder/3.0 (contact@agencyos.local)" },
-        signal: AbortSignal.timeout(4500),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        for (const f of (data.features as RawFeature[]) || []) {
-          const p = f.properties || {};
-          if (!p.name) continue;
-
-          // STRICT GEOFENCE: Check coordinates vs city bounding box & city name
-          const [fLon, fLat] = f.geometry?.coordinates || [0, 0];
-          const itemCity = (p.city || p.district || p.state || "").trim().toLowerCase();
-          const targetCityNorm = cleanCity.toLowerCase().trim();
-
-          const isInsideBbox =
-            fLat >= Math.min(minLat, maxLat) - 0.03 &&
-            fLat <= Math.max(minLat, maxLat) + 0.03 &&
-            fLon >= Math.min(minLon, maxLon) - 0.03 &&
-            fLon <= Math.max(minLon, maxLon) + 0.03;
-
-          const isCityMatch =
-            itemCity.includes(targetCityNorm) ||
-            targetCityNorm.includes(itemCity);
-
-          if (!isInsideBbox && !isCityMatch) {
-            continue;
+    // Query Strategy A: Direct Tag-Only Queries (finds ALL POIs with this category near city)
+    const tagList = customQuery ? [] : config.photonTags || [];
+    for (const tag of tagList.slice(0, 3)) {
+      const tagUrl = `https://photon.komoot.io/api/?lat=${lat}&lon=${lon}&limit=${targetFetchCount}&osm_tag=${encodeURIComponent(
+        tag,
+      )}`;
+      fetchPromises.push(
+        (async () => {
+          try {
+            const res = await fetch(tagUrl, {
+              headers: { "User-Agent": "AgencyOS-LeadFinder/3.0 (contact@agencyos.local)" },
+              signal: AbortSignal.timeout(4500),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              for (const f of (data.features as RawFeature[]) || []) {
+                if (f.properties?.name) rawFeatures.push(f);
+              }
+            }
+          } catch {
+            // Ignore
           }
-
-          rawFeatures.push(f);
-        }
-      }
-    } catch (e) {
-      console.warn("[Photon Search Error]", e);
+        })(),
+      );
     }
+
+    // Query Strategy B: Keyword Sweeps near city
+    const queryList = customQuery ? [customQuery] : config.searchQueries.slice(0, 3);
+    for (const q of queryList) {
+      const qUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
+        q,
+      )}&lat=${lat}&lon=${lon}&limit=${targetFetchCount}`;
+      fetchPromises.push(
+        (async () => {
+          try {
+            const res = await fetch(qUrl, {
+              headers: { "User-Agent": "AgencyOS-LeadFinder/3.0 (contact@agencyos.local)" },
+              signal: AbortSignal.timeout(4500),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              for (const f of (data.features as RawFeature[]) || []) {
+                if (f.properties?.name) rawFeatures.push(f);
+              }
+            }
+          } catch {
+            // Ignore
+          }
+        })(),
+      );
+    }
+
+    await Promise.allSettled(fetchPromises);
+  }
+
+  // Filter features to keep only those within the city metro boundary
+  const filteredFeatures: RawFeature[] = [];
+  const featureDedup = new Set<string>();
+
+  for (const f of rawFeatures) {
+    const p = f.properties || {};
+    if (!p.name) continue;
+
+    const [fLon, fLat] = f.geometry?.coordinates || [0, 0];
+    const itemCity = (p.city || p.district || p.state || "").trim().toLowerCase();
+    const targetCityNorm = cleanCity.toLowerCase().trim();
+
+    // Generous bounding box margin (+0.04 deg ~4.5km) to include all city districts & suburbs
+    const isInsideBbox =
+      fLat >= Math.min(minLat, maxLat) - 0.05 &&
+      fLat <= Math.max(minLat, maxLat) + 0.05 &&
+      fLon >= Math.min(minLon, maxLon) - 0.05 &&
+      fLon <= Math.max(minLon, maxLon) + 0.05;
+
+    const isCityMatch =
+      itemCity.includes(targetCityNorm) ||
+      targetCityNorm.includes(itemCity);
+
+    if (!isInsideBbox && !isCityMatch) {
+      continue;
+    }
+
+    const key = `${p.name.toLowerCase().trim()}_${p.osm_id || Math.round(fLat * 1000)}`;
+    if (featureDedup.has(key)) continue;
+    featureDedup.add(key);
+
+    filteredFeatures.push(f);
   }
 
   // 3. Batch Enrich Features via Official OSM API to get 100% full tags (Phone, Web, Email, Postcode)
   const nodeIds: number[] = [];
   const wayIds: number[] = [];
 
-  for (const f of rawFeatures) {
+  for (const f of filteredFeatures) {
     const p = f.properties;
     if (p.osm_id) {
       if (p.osm_type === "N") nodeIds.push(p.osm_id);
@@ -575,7 +619,7 @@ export async function searchOpenStreetMapLeads({
   const tagMap = new Map<string, Record<string, string>>();
   const enrichPromises: Promise<void>[] = [];
 
-  // Batch query nodes in chunks of 40
+  // Batch query nodes in parallel chunks of 40
   if (nodeIds.length > 0) {
     for (let i = 0; i < nodeIds.length; i += 40) {
       const chunk = nodeIds.slice(i, i + 40);
@@ -586,7 +630,7 @@ export async function searchOpenStreetMapLeads({
               `https://api.openstreetmap.org/api/0.6/nodes.json?nodes=${chunk.join(",")}`,
               {
                 headers: { "User-Agent": "AgencyOS-LeadFinder/3.0 (contact@agencyos.local)" },
-                signal: AbortSignal.timeout(3500),
+                signal: AbortSignal.timeout(4000),
               },
             );
             if (res.ok) {
@@ -603,7 +647,7 @@ export async function searchOpenStreetMapLeads({
     }
   }
 
-  // Batch query ways in chunks of 40
+  // Batch query ways in parallel chunks of 40
   if (wayIds.length > 0) {
     for (let i = 0; i < wayIds.length; i += 40) {
       const chunk = wayIds.slice(i, i + 40);
@@ -614,7 +658,7 @@ export async function searchOpenStreetMapLeads({
               `https://api.openstreetmap.org/api/0.6/ways.json?ways=${chunk.join(",")}`,
               {
                 headers: { "User-Agent": "AgencyOS-LeadFinder/3.0 (contact@agencyos.local)" },
-                signal: AbortSignal.timeout(3500),
+                signal: AbortSignal.timeout(4000),
               },
             );
             if (res.ok) {
@@ -636,7 +680,7 @@ export async function searchOpenStreetMapLeads({
   // 4. Merge enriched OSM tags into company objects
   const rawElements: Array<{ id: number | string; tags?: Record<string, string> }> = [];
 
-  for (const f of rawFeatures) {
+  for (const f of filteredFeatures) {
     const p = f.properties;
     const key = `${p.osm_type || "N"}${p.osm_id}`;
     const rawTags = tagMap.get(key) || {};

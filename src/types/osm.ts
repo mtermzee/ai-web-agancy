@@ -17,7 +17,7 @@ export const INDUSTRY_CONFIG: Record<
   {
     label: string;
     osmTags: string[];
-    photonTag: string;
+    photonTags: string[];
     searchQueries: string[];
     defaultCategory: string;
   }
@@ -25,15 +25,15 @@ export const INDUSTRY_CONFIG: Record<
   dentist: {
     label: "Zahnarzt / Dental Clinic / Orthodontist",
     osmTags: ['"amenity"="dentist"', '"healthcare"="dentist"'],
-    photonTag: "amenity:dentist",
-    searchQueries: ["Dentist", "Zahnarzt", "Dental Clinic", "Orthodontist"],
+    photonTags: ["amenity:dentist", "healthcare:dentist"],
+    searchQueries: ["Zahnarzt", "Dentist", "Zahnklinik", "Kieferorthopäde", "Dental"],
     defaultCategory: "Zahnarzt / Dental",
   },
   doctor: {
     label: "Arzt / Medical Doctor / Clinic",
     osmTags: ['"amenity"="doctors"', '"healthcare"="doctor"', '"amenity"="clinic"'],
-    photonTag: "amenity:doctors",
-    searchQueries: ["Doctor", "Arzt", "Clinic", "Medical Practice"],
+    photonTags: ["amenity:doctors", "healthcare:doctor", "amenity:clinic"],
+    searchQueries: ["Arzt", "Doctor", "Arztpraxis", "Medical", "Klinik"],
     defaultCategory: "Arzt / Medical",
   },
   physiotherapy: {
@@ -43,71 +43,71 @@ export const INDUSTRY_CONFIG: Record<
       '"amenity"="physiotherapist"',
       '"healthcare:speciality"="physiotherapy"',
     ],
-    photonTag: "healthcare:physiotherapist",
-    searchQueries: ["Physiotherapy", "Physical Therapy", "Physiotherapeut", "Chiropractor"],
+    photonTags: ["healthcare:physiotherapist", "amenity:physiotherapist"],
+    searchQueries: ["Physiotherapie", "Physical Therapy", "Osteopathie", "Krankengymnastik"],
     defaultCategory: "Physiotherapie",
   },
   hairdresser: {
     label: "Friseur / Hair Salon / Barbershop",
     osmTags: ['"shop"="hairdresser"'],
-    photonTag: "shop:hairdresser",
-    searchQueries: ["Hair salon", "Friseur", "Barbershop", "Hairdresser"],
+    photonTags: ["shop:hairdresser"],
+    searchQueries: ["Friseur", "Hair Salon", "Barbershop", "Haarstudio", "Coiffeur"],
     defaultCategory: "Friseur / Salon",
   },
   restaurant: {
     label: "Restaurant / Café / Bar / Bakery",
     osmTags: ['"amenity"="restaurant"', '"amenity"="cafe"'],
-    photonTag: "amenity:restaurant",
-    searchQueries: ["Restaurant", "Café", "Pizzeria", "Bakery"],
+    photonTags: ["amenity:restaurant", "amenity:cafe", "amenity:fast_food", "amenity:bar", "amenity:bistro"],
+    searchQueries: ["Restaurant", "Café", "Pizzeria", "Gaststätte", "Bistro", "Bar"],
     defaultCategory: "Gastronomie / Food",
   },
   craftsman: {
     label: "Handwerk & Bau (Plumber, Electrician, Carpenter, etc.)",
     osmTags: ['"craft"'],
-    photonTag: "craft",
-    searchQueries: ["Plumber", "Electrician", "Schreinerei", "Dachdecker", "Contractor"],
+    photonTags: ["craft", "craft:plumber", "craft:electrician", "craft:carpenter", "craft:painter"],
+    searchQueries: ["Handwerk", "Schreinerei", "Elektriker", "Dachdecker", "Plumber", "Contractor"],
     defaultCategory: "Handwerk & Services",
   },
   car_repair: {
     label: "Autowerkstatt / Auto Repair / Mechanic",
     osmTags: ['"shop"="car_repair"', '"craft"="car_repair"'],
-    photonTag: "shop:car_repair",
-    searchQueries: ["Auto repair", "Autowerkstatt", "Car mechanic", "Tire shop"],
+    photonTags: ["shop:car_repair", "craft:car_repair"],
+    searchQueries: ["Autowerkstatt", "Auto Repair", "Kfz-Meisterbetrieb", "Car mechanic", "Reifenservice"],
     defaultCategory: "Autowerkstatt",
   },
   lawyer: {
     label: "Kanzlei / Law Firm / Accountant / Notary",
     osmTags: ['"office"="lawyer"', '"office"="notary"', '"office"="accountant"'],
-    photonTag: "office:lawyer",
-    searchQueries: ["Law firm", "Rechtsanwalt", "Attorney", "Accountant"],
+    photonTags: ["office:lawyer", "office:notary", "office:accountant"],
+    searchQueries: ["Rechtsanwalt", "Anwaltskanzlei", "Law Firm", "Steuerberater", "Notar"],
     defaultCategory: "Kanzlei / Legal",
   },
   fitness: {
     label: "Fitnessstudio / Gym / Yoga / Studio",
     osmTags: ['"leisure"="fitness_centre"', '"leisure"="sports_centre"'],
-    photonTag: "leisure:fitness_centre",
-    searchQueries: ["Gym", "Fitnessstudio", "Yoga Studio", "CrossFit"],
+    photonTags: ["leisure:fitness_centre", "leisure:sports_centre"],
+    searchQueries: ["Fitnessstudio", "Gym", "Yoga Studio", "CrossFit", "Fitness"],
     defaultCategory: "Fitness & Gym",
   },
   beauty: {
     label: "Kosmetik / Beauty Salon / Nail Spa",
     osmTags: ['"shop"="beauty"', '"amenity"="spa"'],
-    photonTag: "shop:beauty",
-    searchQueries: ["Beauty salon", "Kosmetikstudio", "Nail salon", "Spa"],
+    photonTags: ["shop:beauty", "amenity:spa"],
+    searchQueries: ["Kosmetikstudio", "Beauty Salon", "Nagelstudio", "Spa", "Wellness"],
     defaultCategory: "Beauty & Spa",
   },
   hotel: {
     label: "Hotel / Resort / Guest House",
     osmTags: ['"tourism"="hotel"', '"tourism"="guest_house"'],
-    photonTag: "tourism:hotel",
-    searchQueries: ["Hotel", "Resort", "Guest house", "Pension"],
+    photonTags: ["tourism:hotel", "tourism:guest_house", "tourism:hostel"],
+    searchQueries: ["Hotel", "Pension", "Resort", "Guest House", "Gasthof"],
     defaultCategory: "Hotel & Hospitality",
   },
   all: {
     label: "Alle lokalen Betriebe & Geschäfte (All Businesses)",
     osmTags: ['"shop"', '"amenity"'],
-    photonTag: "",
-    searchQueries: ["Business", "Store", "Shop", "Geschäft"],
+    photonTags: ["shop", "amenity", "office", "craft"],
+    searchQueries: ["Geschäft", "Dienstleistung", "Studio", "Praxis", "Business"],
     defaultCategory: "Dienstleistung",
   },
 };
