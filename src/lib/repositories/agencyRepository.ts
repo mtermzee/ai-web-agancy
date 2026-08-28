@@ -311,6 +311,29 @@ export async function saveWorkflowState(company: Company, workflow: CompanyWorkf
   }
 }
 
+export async function updateCompanyDetails(id: string, updates: Partial<Company>) {
+  const supabase = createClient();
+  const dbUpdates: Record<string, unknown> = {};
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.industry !== undefined) dbUpdates.industry = updates.industry;
+  if (updates.address !== undefined) dbUpdates.address = updates.address;
+  if (updates.city !== undefined) dbUpdates.city = updates.city;
+  if (updates.country !== undefined) dbUpdates.country = updates.country;
+  if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+  if (updates.email !== undefined) dbUpdates.email = updates.email;
+  if (updates.website !== undefined) {
+    dbUpdates.website = updates.website;
+    dbUpdates.has_website = Boolean(updates.website);
+  }
+  if (updates.googleRating !== undefined) dbUpdates.google_rating = updates.googleRating;
+  if (updates.reviewCount !== undefined) dbUpdates.review_count = updates.reviewCount;
+
+  if (Object.keys(dbUpdates).length > 0) {
+    const res = await supabase.from("companies").update(dbUpdates).eq("id", id);
+    throwIfError(res.error, "Update company details");
+  }
+}
+
 export async function deleteCompany(id: string) {
   const supabase = createClient();
   const res = await supabase.from("companies").delete().eq("id", id);

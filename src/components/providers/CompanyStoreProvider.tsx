@@ -18,6 +18,7 @@ import {
   resetSupabaseDemoData,
   saveWorkflowState,
   seedSupabaseDemoData,
+  updateCompanyDetails,
 } from "@/lib/repositories/agencyRepository";
 import { createDefaultWorkflow, priorityFromScore } from "@/lib/workflow";
 import type { Company, LeadStatus } from "@/types/company";
@@ -44,6 +45,7 @@ type CompanyStore = {
   setOutreachApproved: (id: string, approved: boolean) => void;
   sendToReview: (id: string) => void;
   markMockupReady: (id: string) => void;
+  updateCompany: (id: string, updates: Partial<Company>) => Promise<void>;
   deleteCompany: (id: string) => Promise<void>;
   deleteDemoData: () => Promise<void>;
   clearAllData: () => Promise<void>;
@@ -437,6 +439,23 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
     }
   }, [dataSource, syncFromSupabase]);
 
+  const updateCompany = useCallback(
+    async (id: string, updates: Partial<Company>) => {
+      setBaseCompanies((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, ...updates } : c)),
+      );
+
+      if (dataSource === "supabase") {
+        try {
+          await updateCompanyDetails(id, updates);
+        } catch (error) {
+          setSyncError(error instanceof Error ? error.message : "Update failed.");
+        }
+      }
+    },
+    [dataSource],
+  );
+
   const resetDemoData = useCallback(() => {
     void loadDemoData();
   }, [loadDemoData]);
@@ -458,6 +477,7 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
       setOutreachApproved,
       sendToReview,
       markMockupReady,
+      updateCompany,
       deleteCompany,
       deleteDemoData,
       clearAllData,
@@ -481,6 +501,7 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
       setOutreachApproved,
       sendToReview,
       markMockupReady,
+      updateCompany,
       deleteCompany,
       deleteDemoData,
       clearAllData,
