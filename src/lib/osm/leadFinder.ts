@@ -3,12 +3,6 @@ import "server-only";
 import type { Company } from "@/types/company";
 import { type IndustryPreset, INDUSTRY_CONFIG } from "@/types/osm";
 
-const OVERPASS_MIRRORS = [
-  "https://overpass-api.de/api/interpreter",
-  "https://lz4.overpass-api.de/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
-];
-
 function sanitizeWebsite(url?: string): string | undefined {
   if (!url) return undefined;
   let clean = url.trim();
@@ -137,7 +131,7 @@ export async function searchOpenStreetMapLeads({
   industry,
   customQuery,
   onlyWithoutWebsite = false,
-  limit = 20,
+  limit = 50,
 }: {
   city: string;
   industry: IndustryPreset;
@@ -150,37 +144,138 @@ export async function searchOpenStreetMapLeads({
 
   const config = INDUSTRY_CONFIG[industry] || INDUSTRY_CONFIG.all;
   const industryLabel = customQuery?.trim() || config.defaultCategory;
-  const fetchLimit = Math.min(60, limit * 2);
+  const targetFetchCount = Math.max(limit * 2, 80);
 
   let rawElements: Array<{ id: number | string; tags?: Record<string, string> }> = [];
   let detectedCountry = "Deutschland";
 
-  // 1. First strategy: Multi-language Nominatim query (worldwide)
-  const queries = customQuery
-    ? [customQuery]
-    : config.searchQueries;
+  // 1. Geocode City Coordinates using Photon (ultra-fast <100ms)
+  let lat = 0;
+  let lon = 0;
+  try {
+    const geoUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(cleanCity)}&limit=1`;
+    const geoRes = await fetch(geoUrl, {
+      headers: { "User-Agent": "AgencyOS-LeadFinder/2.0" },
+      signal: AbortSignal.timeout(3500),
+    });
+    if (geoRes.ok) {
+      const geoData = await geoRes.json();
+      const feat = geoData.features?.[0];
+      if (feat?.geometry?.coordinates) {
+        [lon, lat] = feat.geometry.coordinates;
+        if (feat.properties?.country) {
+          detectedCountry = feat.properties.country;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[Photon Geocode Error]", err);
+  }
 
-  for (const q of queries.slice(0, 3)) {
+  // 2. Query Photon with Industry Tag and Lat/Lon
+  const searchTerm = customQuery?.trim() || config.searchQueries[0] || "Business";
+  const photonTag = config.photonTag;
+
+  const photonPromises: Promise<void>[] = [];
+
+  // Query primary term near city coordinates
+  if (lat !== 0 && lon !== 0) {
+    const tagParam = photonTag ? `&osm_tag=${encodeURIComponent(photonTag)}` : "";
+    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
+      searchTerm,
+    )}&lat=${lat}&lon=${lon}&limit=${targetFetchCount}${tagParam}`;
+
+    photonPromises.push(
+      (async () => {
+        try {
+          const res = await fetch(photonUrl, {
+            headers: { "User-Agent": "AgencyOS-LeadFinder/2.0" },
+            signal: AbortSignal.timeout(4500),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            for (const f of data.features || []) {
+              const p = f.properties || {};
+              if (!p.name) continue;
+              rawElements.push({
+                id: p.osm_id || Math.floor(Math.random() * 10000000),
+                tags: {
+                  name: p.name,
+                  "addr:street": p.street || "",
+                  "addr:housenumber": p.housenumber || "",
+                  "addr:city": p.city || p.district || p.state || cleanCity,
+                  "addr:country": p.country || detectedCountry,
+                  phone: p.phone || "",
+                  website: p.website || "",
+                  ...(p.extra || {}),
+                },
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("[Photon Search Error]", e);
+        }
+      })(),
+    );
+
+    // Also query secondary term if available
+    if (config.searchQueries[1] && !customQuery) {
+      const secondTerm = config.searchQueries[1];
+      const secondUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
+        secondTerm,
+      )}&lat=${lat}&lon=${lon}&limit=${targetFetchCount}${tagParam}`;
+      photonPromises.push(
+        (async () => {
+          try {
+            const res = await fetch(secondUrl, {
+              headers: { "User-Agent": "AgencyOS-LeadFinder/2.0" },
+              signal: AbortSignal.timeout(4500),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              for (const f of data.features || []) {
+                const p = f.properties || {};
+                if (!p.name) continue;
+                rawElements.push({
+                  id: p.osm_id || Math.floor(Math.random() * 10000000),
+                  tags: {
+                    name: p.name,
+                    "addr:street": p.street || "",
+                    "addr:housenumber": p.housenumber || "",
+                    "addr:city": p.city || p.district || p.state || cleanCity,
+                    "addr:country": p.country || detectedCountry,
+                    phone: p.phone || "",
+                    website: p.website || "",
+                    ...(p.extra || {}),
+                  },
+                });
+              }
+            }
+          } catch {
+            // Ignore secondary error
+          }
+        })(),
+      );
+    }
+  }
+
+  // 3. Query Nominatim as complementary data source
+  const nomQueries = customQuery ? [customQuery] : config.searchQueries.slice(0, 2);
+  const nomPromises = nomQueries.map(async (q) => {
     try {
-      const searchTerms = `${q} in ${cleanCity}`;
       const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-        searchTerms,
-      )}&format=json&addressdetails=1&extratags=1&limit=${fetchLimit}`;
-      
-      const nomRes = await fetch(nomUrl, {
-        headers: { "User-Agent": "AgencyOS-LeadFinder/1.0 (contact@agencyos.local)" },
+        `${q} in ${cleanCity}`,
+      )}&format=json&addressdetails=1&extratags=1&limit=50`;
+      const res = await fetch(nomUrl, {
+        headers: { "User-Agent": "AgencyOS-LeadFinder/2.0 (contact@agencyos.local)" },
         signal: AbortSignal.timeout(4500),
       });
-
-      if (nomRes.ok) {
-        const nomData = await nomRes.json();
-        if (Array.isArray(nomData) && nomData.length > 0) {
+      if (res.ok) {
+        const nomData = await res.json();
+        if (Array.isArray(nomData)) {
           for (const item of nomData) {
-            if (item.address?.country) {
-              detectedCountry = item.address.country;
-            }
             rawElements.push({
-              id: item.osm_id || Math.floor(Math.random() * 1000000),
+              id: item.osm_id || Math.floor(Math.random() * 10000000),
               tags: {
                 name: item.name || item.display_name?.split(",")[0] || "",
                 ...(item.extratags || {}),
@@ -190,7 +285,6 @@ export async function searchOpenStreetMapLeads({
                   item.address?.city ||
                   item.address?.town ||
                   item.address?.village ||
-                  item.address?.county ||
                   cleanCity,
                 "addr:country": item.address?.country || detectedCountry,
               },
@@ -198,61 +292,14 @@ export async function searchOpenStreetMapLeads({
           }
         }
       }
-    } catch (nomError) {
-      console.warn("[Nominatim Query Error]", nomError);
+    } catch (e) {
+      console.warn("[Nominatim Fetch Error]", e);
     }
-  }
+  });
 
-  // 2. Second strategy: If Nominatim returned fewer than 5, try Overpass bounding box
-  if (rawElements.length < 5) {
-    try {
-      const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-        cleanCity,
-      )}&format=json&limit=1`;
-      const geoRes = await fetch(geoUrl, {
-        headers: { "User-Agent": "AgencyOS-LeadFinder/1.0" },
-        signal: AbortSignal.timeout(3000),
-      });
-      if (geoRes.ok) {
-        const geoData = await geoRes.json();
-        if (Array.isArray(geoData) && geoData.length > 0) {
-          if (geoData[0].display_name) {
-            detectedCountry = geoData[0].display_name.split(",").slice(-1)[0]?.trim() || detectedCountry;
-          }
-          const [south, north, west, east] = geoData[0].boundingbox;
-          const tagFilters = config.osmTags;
-          const nodeQueries = tagFilters
-            .map((tag) => `node[${tag}](${south},${west},${north},${east});`)
-            .join("\n  ");
-          const ql = `[out:json][timeout:10];(${nodeQueries});out center tags ${fetchLimit};`;
+  await Promise.allSettled([...photonPromises, ...nomPromises]);
 
-          for (const mirror of OVERPASS_MIRRORS) {
-            try {
-              const opRes = await fetch(
-                `${mirror}?data=${encodeURIComponent(ql)}`,
-                {
-                  headers: { "User-Agent": "AgencyOS-LeadFinder/1.0" },
-                  signal: AbortSignal.timeout(5000),
-                },
-              );
-              if (!opRes.ok) continue;
-              const opData = await opRes.json();
-              if (Array.isArray(opData.elements) && opData.elements.length > 0) {
-                rawElements.push(...opData.elements);
-                break;
-              }
-            } catch {
-              // Try next mirror
-            }
-          }
-        }
-      }
-    } catch (overpassErr) {
-      console.warn("[Overpass Query Error]", overpassErr);
-    }
-  }
-
-  // 3. Parse, Filter & Deduplicate
+  // 4. Parse, Deduplicate and Filter
   const seen = new Set<string>();
   const results: Company[] = [];
 
@@ -260,7 +307,7 @@ export async function searchOpenStreetMapLeads({
     const company = mapOsmElementToCompany(el, cleanCity, detectedCountry, industryLabel);
     if (!company) continue;
 
-    const dedupKey = `${company.name.toLowerCase()}_${company.address.toLowerCase()}`;
+    const dedupKey = `${company.name.toLowerCase().trim()}_${company.address.toLowerCase().trim()}`;
     if (seen.has(dedupKey)) continue;
     seen.add(dedupKey);
 

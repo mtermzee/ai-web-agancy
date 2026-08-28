@@ -46,8 +46,9 @@ export function LeadFinderModal({ isOpen, onClose }: Props) {
   const [industry, setIndustry] = useState<IndustryPreset>("dentist");
   const [customQuery, setCustomQuery] = useState("");
   const [onlyWithoutWebsite, setOnlyWithoutWebsite] = useState(false);
-  const [limit, setLimit] = useState(15);
+  const [limit, setLimit] = useState(50);
   const [searching, setSearching] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [leads, setLeads] = useState<Company[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -94,16 +95,60 @@ export function LeadFinderModal({ isOpen, onClose }: Props) {
         throw new Error(data.error || `Suche fehlgeschlagen (${res.status})`);
       }
 
-      setLeads(data.leads || []);
+      const fetchedLeads = data.leads || [];
+      setLeads(fetchedLeads);
       // Select all by default
-      setSelectedIds(new Set((data.leads || []).map((l: Company) => l.id)));
-      if (!data.leads?.length) {
-        setSearchError("Keine Einträge für diese Suchkombination gefunden. Versuche eine andere Stadt oder Branche.");
+      setSelectedIds(new Set(fetchedLeads.map((l: Company) => l.id)));
+      if (!fetchedLeads.length) {
+        setSearchError("Keine Einträge für diese Suchkombination gefunden. Versuche eine andere Stadt oder einen breiteren Begriff.");
       }
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : "Suche fehlgeschlagen.");
     } finally {
       setSearching(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (!city.trim() || loadingMore) return;
+    setLoadingMore(true);
+    setSearchError(null);
+
+    try {
+      const newLimit = leads.length + 50;
+      const res = await fetch("/api/leads/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          city: city.trim(),
+          industry,
+          customQuery: customQuery.trim() || undefined,
+          onlyWithoutWebsite,
+          limit: newLimit,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Laden fehlgeschlagen");
+
+      const fetchedLeads = data.leads || [];
+      const existingIds = new Set(leads.map((l) => l.id));
+      const newOnes = fetchedLeads.filter((l: Company) => !existingIds.has(l.id));
+
+      if (newOnes.length === 0) {
+        setSearchError("Keine weiteren Betriebe in dieser Region gefunden.");
+      } else {
+        setLeads(fetchedLeads);
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          for (const l of newOnes) next.add(l.id);
+          return next;
+        });
+      }
+    } catch (err) {
+      setSearchError(err instanceof Error ? err.message : "Fehler beim Nachladen.");
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -337,9 +382,10 @@ export function LeadFinderModal({ isOpen, onClose }: Props) {
                     value={limit}
                     onChange={(e) => setLimit(Number(e.target.value))}
                   >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={30}>30</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={150}>150</option>
                   </select>
                 </div>
               </div>
@@ -375,7 +421,8 @@ export function LeadFinderModal({ isOpen, onClose }: Props) {
               <div className="finder-results-section">
                 <div className="results-header">
                   <div className="results-count">
-                    <strong>{leads.length}</strong> Betriebe gefunden ·{" "}
+                    <strong>{leads.length}</strong> Betriebe gefunden (
+                    {leads.filter((l) => !l.hasWebsite).length} ohne Website) ·{" "}
                     <strong>{selectedIds.size}</strong> ausgewählt
                   </div>
                   <div className="results-actions">
@@ -457,6 +504,18 @@ export function LeadFinderModal({ isOpen, onClose }: Props) {
                       </div>
                     );
                   })}
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "center", paddingTop: 8 }}>
+                  <button
+                    type="button"
+                    className="button secondary compact"
+                    onClick={() => void handleLoadMore()}
+                    disabled={loadingMore}
+                  >
+                    {loadingMore ? <Loader2 size={14} className="spin-icon" /> : <Plus size={14} />}
+                    {loadingMore ? "Lade weitere Betriebe…" : "Mehr Betriebe nachladen (+50)"}
+                  </button>
                 </div>
               </div>
             )}
