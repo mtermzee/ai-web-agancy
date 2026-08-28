@@ -311,6 +311,24 @@ export async function saveWorkflowState(company: Company, workflow: CompanyWorkf
   }
 }
 
+export async function deleteCompany(id: string) {
+  const supabase = createClient();
+  const res = await supabase.from("companies").delete().eq("id", id);
+  throwIfError(res.error, "Delete company");
+}
+
+export async function deleteDemoCompanies(demoIds: string[]) {
+  const supabase = createClient();
+  const res = await supabase.from("companies").delete().in("id", demoIds);
+  throwIfError(res.error, "Delete demo companies");
+}
+
+export async function deleteAllCompanies() {
+  const supabase = createClient();
+  const res = await supabase.from("companies").delete().not("id", "is", null);
+  throwIfError(res.error, "Delete all companies");
+}
+
 export async function resetSupabaseDemoData(companies: Company[]) {
   const supabase = createClient();
   // Deleting companies cascades into all workflow tables, then the immutable

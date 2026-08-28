@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, ExternalLink, Globe2, MapPin, Phone, Sparkles, TriangleAlert } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, CheckCircle2, ExternalLink, Globe2, MapPin, Phone, Sparkles, Trash2, TriangleAlert } from "lucide-react";
 import { AuditScores } from "@/components/companies/AuditScores";
 import { GeminiAnalyzeButton } from "@/components/ai/GeminiAnalyzeButton";
 import { PotentialBadge, StatusBadge } from "@/components/ui/Badge";
@@ -13,7 +14,8 @@ import { LeadManagementPanel } from "@/components/workflow/LeadManagementPanel";
 import type { Company, LeadStatus } from "@/types/company";
 
 export function CompanyDetailClient({ initialCompany }: { initialCompany: Company }) {
-  const { getCompany, getWorkflow, updateStatus, sendToReview, markMockupReady } = useCompanyStore();
+  const router = useRouter();
+  const { getCompany, getWorkflow, updateStatus, sendToReview, markMockupReady, deleteCompany } = useCompanyStore();
   const company = getCompany(initialCompany.id) ?? initialCompany;
   const workflow = getWorkflow(company.id);
   const [generating, setGenerating] = useState(false);
@@ -27,10 +29,23 @@ export function CompanyDetailClient({ initialCompany }: { initialCompany: Compan
     }, 850);
   };
 
+  const handleDelete = async () => {
+    if (window.confirm(`Möchtest du "${company.name}" wirklich löschen?`)) {
+      await deleteCompany(company.id);
+      router.push("/companies");
+    }
+  };
+
   return <div className="page">
     <div className="page-header">
       <div><Link href="/companies" className="eyebrow inline-link"><ArrowLeft size={14}/>Companies</Link><h1>{company.name}</h1><p className="page-subtitle">{company.industry} · {company.city}, {company.country}</p></div>
-      <div className="header-actions"><Link className="button secondary" href={`/companies/${company.id}/mockup`}><Globe2 size={17}/>Open mockup</Link><button className="button primary" onClick={generateMockup} disabled={generating || company.mockupReady}><Sparkles size={17}/>{generating ? "Generating..." : company.mockupReady ? "Mockup ready" : "Generate mockup"}</button></div>
+      <div className="header-actions">
+        <button className="button secondary" onClick={handleDelete} title="Unternehmen löschen" style={{ color: "#d92d20" }}>
+          <Trash2 size={16}/>
+        </button>
+        <Link className="button secondary" href={`/companies/${company.id}/mockup`}><Globe2 size={17}/>Open mockup</Link>
+        <button className="button primary" onClick={generateMockup} disabled={generating || company.mockupReady}><Sparkles size={17}/>{generating ? "Generating..." : company.mockupReady ? "Mockup ready" : "Generate mockup"}</button>
+      </div>
     </div>
 
     {workflow && <section className="company-command-strip card">

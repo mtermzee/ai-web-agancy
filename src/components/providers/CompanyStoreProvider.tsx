@@ -10,6 +10,9 @@ import {
 } from "react";
 import { companies as seedCompanies } from "@/data/companies";
 import {
+  deleteAllCompanies,
+  deleteCompany as deleteCompanyRemote,
+  deleteDemoCompanies,
   isSupabaseConfigured,
   loadAgencyState,
   resetSupabaseDemoData,
@@ -41,6 +44,10 @@ type CompanyStore = {
   setOutreachApproved: (id: string, approved: boolean) => void;
   sendToReview: (id: string) => void;
   markMockupReady: (id: string) => void;
+  deleteCompany: (id: string) => Promise<void>;
+  deleteDemoData: () => Promise<void>;
+  clearAllData: () => Promise<void>;
+  loadDemoData: () => Promise<void>;
   syncFromSupabase: () => Promise<void>;
   resetDemoData: () => void;
 };
@@ -71,11 +78,7 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
     setSyncing(true);
     setSyncError(null);
     try {
-      let state = await loadAgencyState();
-      if (!state.companies.length) {
-        await seedSupabaseDemoData(seedCompanies);
-        state = await loadAgencyState();
-      }
+      const state = await loadAgencyState();
       setBaseCompanies(state.companies);
       setOverrides(state.workflows);
       setDataSource("supabase");
@@ -353,21 +356,90 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
     [updateState],
   );
 
-  const resetDemoData = useCallback(() => {
+  const deleteCompany = useCallback(
+    async (id: string) => {
+      setBaseCompanies((prev) => prev.filter((c) => c.id !== id));
+      setOverrides((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+
+      if (dataSource === "supabase") {
+        try {
+          await deleteCompanyRemote(id);
+        } catch (error) {
+          setSyncError(error instanceof Error ? error.message : "Delete failed.");
+        }
+      }
+    },
+    [dataSource],
+  );
+
+  const deleteDemoData = useCallback(async () => {
+    const demoIds = seedCompanies.map((c) => c.id);
+    const demoSet = new Set(demoIds);
+
+    setBaseCompanies((prev) => prev.filter((c) => !demoSet.has(c.id)));
+    setOverrides((prev) => {
+      const next = { ...prev };
+      for (const id of demoIds) delete next[id];
+      return next;
+    });
+
+    if (dataSource === "supabase") {
+      setSyncing(true);
+      try {
+        await deleteDemoCompanies(demoIds);
+        await syncFromSupabase();
+      } catch (error) {
+        setSyncError(error instanceof Error ? error.message : "Delete demo data failed.");
+      } finally {
+        setSyncing(false);
+      }
+    }
+  }, [dataSource, syncFromSupabase]);
+
+  const clearAllData = useCallback(async () => {
+    setBaseCompanies([]);
+    setOverrides({});
+    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+
+    if (dataSource === "supabase") {
+      setSyncing(true);
+      try {
+        await deleteAllCompanies();
+        await syncFromSupabase();
+      } catch (error) {
+        setSyncError(error instanceof Error ? error.message : "Clear all failed.");
+      } finally {
+        setSyncing(false);
+      }
+    }
+  }, [dataSource, syncFromSupabase]);
+
+  const loadDemoData = useCallback(async () => {
     setBaseCompanies(seedCompanies);
     setOverrides({});
     setSyncError(null);
 
     if (dataSource === "supabase") {
       setSyncing(true);
-      void resetSupabaseDemoData(seedCompanies)
-        .then(syncFromSupabase)
-        .catch((error) =>
-          setSyncError(error instanceof Error ? error.message : "Supabase reset failed."),
-        )
-        .finally(() => setSyncing(false));
+      try {
+        await seedSupabaseDemoData(seedCompanies);
+        await syncFromSupabase();
+      } catch (error) {
+        setSyncError(error instanceof Error ? error.message : "Load demo data failed.");
+      } finally {
+        setSyncing(false);
+      }
     }
   }, [dataSource, syncFromSupabase]);
+
+  const resetDemoData = useCallback(() => {
+    void loadDemoData();
+  }, [loadDemoData]);
 
   const value = useMemo(
     () => ({
@@ -386,6 +458,10 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
       setOutreachApproved,
       sendToReview,
       markMockupReady,
+      deleteCompany,
+      deleteDemoData,
+      clearAllData,
+      loadDemoData,
       syncFromSupabase,
       resetDemoData,
     }),
@@ -405,6 +481,10 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
       setOutreachApproved,
       sendToReview,
       markMockupReady,
+      deleteCompany,
+      deleteDemoData,
+      clearAllData,
+      loadDemoData,
       syncFromSupabase,
       resetDemoData,
     ],

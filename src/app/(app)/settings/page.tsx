@@ -1,10 +1,31 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Database, RefreshCw, RotateCcw, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Database, Download, RefreshCw, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import { useCompanyStore } from "@/components/providers/CompanyStoreProvider";
 
 export default function Page() {
-  const { dataSource, syncing, syncError, syncFromSupabase, resetDemoData, companies } = useCompanyStore();
+  const {
+    dataSource,
+    syncing,
+    syncError,
+    syncFromSupabase,
+    deleteDemoData,
+    clearAllData,
+    loadDemoData,
+    companies,
+  } = useCompanyStore();
+
+  const handleDeleteDemo = async () => {
+    if (window.confirm("Möchtest du die 8 Demo-Leads wirklich löschen? Importierte / echte Leads bleiben erhalten.")) {
+      await deleteDemoData();
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (window.confirm("WARNUNG: Möchtest du wirklich ALLE Unternehmen & Leads aus der Datenbank löschen?")) {
+      await clearAllData();
+    }
+  };
 
   return (
     <div className="page">
@@ -49,13 +70,19 @@ export default function Page() {
             </div>
           )}
 
-          <div className="settings-actions">
+          <div className="settings-actions" style={{ flexWrap: "wrap", gap: "10px" }}>
             <button className="button secondary" onClick={() => void syncFromSupabase()} disabled={syncing}>
               <RefreshCw size={15} className={syncing ? "spin-icon" : ""} />
               {syncing ? "Syncing…" : "Sync from Supabase"}
             </button>
-            <button className="button secondary" onClick={resetDemoData} disabled={syncing}>
-              <RotateCcw size={15} />Reset demo data
+            <button className="button secondary" onClick={handleDeleteDemo} disabled={syncing} style={{ color: "#b54708" }}>
+              <Trash2 size={15} /> 8 Demo-Leads löschen
+            </button>
+            <button className="button secondary" onClick={handleClearAll} disabled={syncing} style={{ color: "#d92d20" }}>
+              <Trash2 size={15} /> Alle Daten leeren
+            </button>
+            <button className="button secondary" onClick={() => void loadDemoData()} disabled={syncing}>
+              <Download size={15} /> Demo-Daten laden
             </button>
           </div>
         </section>
