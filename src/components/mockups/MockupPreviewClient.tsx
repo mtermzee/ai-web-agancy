@@ -254,7 +254,7 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
         {/* Style Angle Selector */}
         <div className="style-selector-group">
           <span className="control-strip-label" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <Zap size={13} /> KI-Stil:
+            <Zap size={13} /> KI-Layout & Stil:
           </span>
           {(Object.keys(STYLE_CONFIG) as MockupStyle[]).map((sKey) => {
             const s = STYLE_CONFIG[sKey];
@@ -264,7 +264,9 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                 className={`style-chip ${selectedStyle === sKey ? "active" : ""}`}
                 onClick={() => {
                   setSelectedStyle(sKey);
-                  void handleGenerateAI(sKey);
+                  setTheme(s.recommendedTheme);
+                  setFeedbackMessage(`Layout auf „${s.name}“ umgestellt!`);
+                  setTimeout(() => setFeedbackMessage(null), 3000);
                 }}
                 title={s.description}
               >
@@ -380,9 +382,31 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
 
           {/* Generated Website Body */}
           <div
-            className="mock-website-root"
+            className={`mock-website-root layout-style-${selectedStyle}`}
             style={{ background: currentTheme.bg, color: currentTheme.text }}
           >
+            {/* Conversion Urgency Bar (Only in Conversion Style) */}
+            {selectedStyle === "conversion" && (
+              <div
+                className="urgency-top-banner"
+                style={{ background: currentTheme.primary, color: "#ffffff" }}
+              >
+                <div className="urgency-badge">
+                  <span>⚡ Express-Termine verfügbar</span>
+                  <span>·</span>
+                  <span>Vor-Ort-Service in {company.city} & Umgebung</span>
+                </div>
+                {company.phone && (
+                  <a
+                    href={`tel:${company.phone}`}
+                    style={{ color: "#ffffff", textDecoration: "none", fontWeight: 700 }}
+                  >
+                    📞 Direkt-Hotline: {company.phone}
+                  </a>
+                )}
+              </div>
+            )}
+
             {/* 1. Header / Navbar */}
             <header
               className="mock-site-nav"
@@ -407,14 +431,17 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                     <a href="#services" style={{ color: currentTheme.text }}>
                       Leistungen
                     </a>
+                    <a href="#process" style={{ color: currentTheme.text }}>
+                      Ablauf
+                    </a>
                     <a href="#about" style={{ color: currentTheme.text }}>
                       Über uns
                     </a>
                     <a href="#reviews" style={{ color: currentTheme.text }}>
                       Bewertungen
                     </a>
-                    <a href="#contact" style={{ color: currentTheme.text }}>
-                      Kontakt
+                    <a href="#faq" style={{ color: currentTheme.text }}>
+                      FAQ
                     </a>
                   </nav>
                 )}
@@ -435,150 +462,462 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
               </div>
             </header>
 
-            {/* 2. Hero Section */}
-            <section className="mock-hero-section">
-              <div className="mock-hero-container">
-                <div className="mock-hero-content">
-                  <div
-                    className="mock-kicker-pill"
+            {/* 2. Hero Section - DYNAMIC LAYOUT PER STYLE */}
+
+            {/* LAYOUT A: PREMIUM & LUXURY (Centered Full-Width Editorial) */}
+            {selectedStyle === "premium" && (
+              <section className="mock-hero-editorial" style={{ background: currentTheme.bg }}>
+                <div
+                  className="mock-kicker-pill"
+                  style={{
+                    background: `${currentTheme.primary}18`,
+                    color: currentTheme.primary,
+                    border: `1px solid ${currentTheme.primary}35`,
+                  }}
+                >
+                  <span>✦</span>
+                  <span>{content.heroKicker}</span>
+                </div>
+
+                <h1 className="mock-hero-h1">
+                  {isEditing ? (
+                    <textarea
+                      className="inline-textarea"
+                      value={content.heroTitle}
+                      onChange={(e) =>
+                        setContent({ ...content, heroTitle: e.target.value })
+                      }
+                    />
+                  ) : (
+                    content.heroTitle
+                  )}
+                </h1>
+
+                <p className="mock-hero-p" style={{ color: currentTheme.mutedText }}>
+                  {isEditing ? (
+                    <textarea
+                      className="inline-textarea"
+                      value={content.heroDescription}
+                      onChange={(e) =>
+                        setContent({ ...content, heroDescription: e.target.value })
+                      }
+                    />
+                  ) : (
+                    content.heroDescription
+                  )}
+                </p>
+
+                <div className="mock-hero-btn-row" style={{ justifyContent: "center" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenBooking(content.heroCta)}
+                    className="mock-primary-cta"
                     style={{
-                      background: `${currentTheme.primary}18`,
-                      color: currentTheme.primary,
-                      border: `1px solid ${currentTheme.primary}35`,
+                      background: currentTheme.primary,
+                      color: "#ffffff",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: "14px 32px",
+                      fontSize: "1.05rem",
                     }}
                   >
-                    <span
-                      className="kicker-pulse"
-                      style={{ background: currentTheme.primary }}
-                    />
-                    {isEditing ? (
-                      <input
-                        className="inline-input"
-                        value={content.heroKicker}
-                        onChange={(e) =>
-                          setContent({ ...content, heroKicker: e.target.value })
-                        }
-                      />
-                    ) : (
-                      content.heroKicker
-                    )}
-                  </div>
-
-                  <h1 className="mock-hero-h1">
-                    {isEditing ? (
-                      <textarea
-                        className="inline-textarea"
-                        value={content.heroTitle}
-                        onChange={(e) =>
-                          setContent({ ...content, heroTitle: e.target.value })
-                        }
-                      />
-                    ) : (
-                      content.heroTitle
-                    )}
-                  </h1>
-
-                  <p
-                    className="mock-hero-p"
-                    style={{ color: currentTheme.mutedText }}
+                    {content.heroCta} <ChevronRight size={16} />
+                  </button>
+                  <a
+                    href="#services"
+                    className="mock-secondary-cta"
+                    style={{
+                      borderColor: currentTheme.border,
+                      color: currentTheme.text,
+                      background: currentTheme.cardBg,
+                      padding: "14px 28px",
+                    }}
                   >
-                    {isEditing ? (
-                      <textarea
-                        className="inline-textarea"
-                        value={content.heroDescription}
-                        onChange={(e) =>
-                          setContent({
-                            ...content,
-                            heroDescription: e.target.value,
-                          })
-                        }
-                      />
-                    ) : (
-                      content.heroDescription
-                    )}
-                  </p>
+                    {content.heroSecondaryCta}
+                  </a>
+                </div>
 
-                  <div className="mock-hero-btn-row">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenBooking(content.heroCta)}
-                      className="mock-primary-cta"
+                {/* Full-Width Panoramic Visual */}
+                <div className="luxury-hero-card-showcase">
+                  <img
+                    src={content.heroImage}
+                    alt={company.name}
+                    className="luxury-hero-img"
+                  />
+                  <div
+                    className="floating-glass-card"
+                    style={{
+                      background: `${currentTheme.cardBg}eb`,
+                      borderColor: currentTheme.border,
+                      bottom: "24px",
+                      left: "24px",
+                      right: "24px",
+                      maxWidth: "420px",
+                      margin: "0 auto",
+                    }}
+                  >
+                    <div
+                      className="floating-icon"
+                      style={{ background: currentTheme.primary, color: "#ffffff" }}
+                    >
+                      ★
+                    </div>
+                    <div>
+                      <strong>Exklusiver Concierge & Vor-Ort-Service</strong>
+                      <span>Diskrete und maßgeschneiderte Betreuung</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* LAYOUT B: CONVERSION BOOSTER (Embedded Quick-Lead Form in Hero) */}
+            {selectedStyle === "conversion" && (
+              <section className="mock-hero-section">
+                <div className="mock-hero-container">
+                  <div className="mock-hero-content">
+                    <div
+                      className="mock-kicker-pill"
                       style={{
-                        background: currentTheme.primary,
-                        color: "#ffffff",
-                        border: "none",
-                        cursor: "pointer",
+                        background: `${currentTheme.primary}18`,
+                        color: currentTheme.primary,
+                        border: `1px solid ${currentTheme.primary}35`,
                       }}
                     >
-                      {content.heroCta} <ChevronRight size={16} />
-                    </button>
-                    <a
-                      href="#services"
-                      className="mock-secondary-cta"
+                      <span
+                        className="kicker-pulse"
+                        style={{ background: currentTheme.primary }}
+                      />
+                      {content.heroKicker}
+                    </div>
+
+                    <h1 className="mock-hero-h1">
+                      {isEditing ? (
+                        <textarea
+                          className="inline-textarea"
+                          value={content.heroTitle}
+                          onChange={(e) =>
+                            setContent({ ...content, heroTitle: e.target.value })
+                          }
+                        />
+                      ) : (
+                        content.heroTitle
+                      )}
+                    </h1>
+
+                    <p className="mock-hero-p" style={{ color: currentTheme.mutedText }}>
+                      {isEditing ? (
+                        <textarea
+                          className="inline-textarea"
+                          value={content.heroDescription}
+                          onChange={(e) =>
+                            setContent({
+                              ...content,
+                              heroDescription: e.target.value,
+                            })
+                          }
+                        />
+                      ) : (
+                        content.heroDescription
+                      )}
+                    </p>
+
+                    {/* Trust Micro-Row */}
+                    <div className="mock-hero-trust-bar">
+                      <div className="trust-item">
+                        <div className="stars-row">
+                          <Star size={13} fill="#f59e0b" color="#f59e0b" />
+                          <Star size={13} fill="#f59e0b" color="#f59e0b" />
+                          <Star size={13} fill="#f59e0b" color="#f59e0b" />
+                          <Star size={13} fill="#f59e0b" color="#f59e0b" />
+                          <Star size={13} fill="#f59e0b" color="#f59e0b" />
+                        </div>
+                        <span>
+                          <strong>4.9 / 5</strong> Google Bewertung ({company.city})
+                        </span>
+                      </div>
+                      <div className="trust-item">
+                        <CheckCircle2 size={14} color={currentTheme.primary} />
+                        <span>100% Festpreis-Garantie</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: High-Converting Embedded Form Card */}
+                  <div className="mock-hero-visual">
+                    <div
+                      className="hero-inline-form-card"
                       style={{
+                        background: currentTheme.cardBg,
                         borderColor: currentTheme.border,
                         color: currentTheme.text,
-                        background: currentTheme.cardBg,
                       }}
                     >
-                      {content.heroSecondaryCta}
-                    </a>
-                  </div>
-
-                  {/* Trust Micro-Row */}
-                  <div className="mock-hero-trust-bar">
-                    <div className="trust-item">
-                      <div className="stars-row">
-                        <Star size={13} fill="#f59e0b" color="#f59e0b" />
-                        <Star size={13} fill="#f59e0b" color="#f59e0b" />
-                        <Star size={13} fill="#f59e0b" color="#f59e0b" />
-                        <Star size={13} fill="#f59e0b" color="#f59e0b" />
-                        <Star size={13} fill="#f59e0b" color="#f59e0b" />
+                      <div className="hero-form-header">
+                        <h3>⚡ Schnellanfrage in 60 Sek.</h3>
+                        <p style={{ color: currentTheme.mutedText }}>
+                          Erhalten Sie unverbindlich Ihr Festpreis-Angebot für {company.city}
+                        </p>
                       </div>
+
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleOpenBooking("Schnellanfrage Hero");
+                        }}
+                        className="hero-form-inputs"
+                      >
+                        <select defaultValue={content.services[0]?.title || "Beratung"}>
+                          {content.services.map((s, i) => (
+                            <option key={i} value={s.title}>
+                              {s.title}
+                            </option>
+                          ))}
+                        </select>
+                        <input placeholder="Ihr Name" defaultValue="" />
+                        <input
+                          placeholder="Telefonnummer für Rückruf"
+                          defaultValue=""
+                        />
+                        <button
+                          type="submit"
+                          className="hero-form-submit-btn"
+                          style={{
+                            background: currentTheme.primary,
+                            color: "#ffffff",
+                          }}
+                        >
+                          <Send size={15} /> Jetzt Angebot anfordern
+                        </button>
+                      </form>
+                      <p className="hero-form-trust-note" style={{ color: currentTheme.mutedText }}>
+                        🔒 100% kostenlos & unverbindlich · Keine Weitergabe
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* LAYOUT C: REGIONALER MEISTERBETRIEB (Craft & Tradition) */}
+            {selectedStyle === "local-trust" && (
+              <section className="mock-hero-section">
+                <div className="mock-hero-container">
+                  <div className="mock-hero-content">
+                    <div
+                      className="meister-seal-header"
+                      style={{
+                        background: `${currentTheme.primary}15`,
+                        color: currentTheme.primary,
+                        border: `1px solid ${currentTheme.primary}30`,
+                      }}
+                    >
+                      <span>🇩🇪</span>
+                      <span>Inhabergeführter Meisterbetrieb & Tradition in {company.city}</span>
+                    </div>
+
+                    <h1 className="mock-hero-h1">
+                      {isEditing ? (
+                        <textarea
+                          className="inline-textarea"
+                          value={content.heroTitle}
+                          onChange={(e) =>
+                            setContent({ ...content, heroTitle: e.target.value })
+                          }
+                        />
+                      ) : (
+                        content.heroTitle
+                      )}
+                    </h1>
+
+                    <p className="mock-hero-p" style={{ color: currentTheme.mutedText }}>
+                      {content.heroDescription}
+                    </p>
+
+                    <div className="mock-hero-btn-row">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenBooking(content.heroCta)}
+                        className="mock-primary-cta"
+                        style={{
+                          background: currentTheme.primary,
+                          color: "#ffffff",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {content.heroCta} <ChevronRight size={16} />
+                      </button>
+                      {company.phone && (
+                        <a
+                          href={`tel:${company.phone}`}
+                          className="mock-secondary-cta"
+                          style={{
+                            borderColor: currentTheme.border,
+                            color: currentTheme.text,
+                            background: currentTheme.cardBg,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          <Phone size={15} /> Direkt anrufen
+                        </a>
+                      )}
+                    </div>
+
+                    <div
+                      className="regional-radius-badge"
+                      style={{
+                        background: currentTheme.cardBg,
+                        borderColor: currentTheme.border,
+                        border: "1px solid",
+                        color: currentTheme.text,
+                      }}
+                    >
+                      <MapPin size={16} color={currentTheme.primary} />
                       <span>
-                        <strong>4.9 / 5</strong> Google Bewertung
+                        Regionales Einsatzgebiet: <strong>{company.city} & 35km Umkreis</strong>
                       </span>
                     </div>
-                    <div className="trust-item">
-                      <CheckCircle2 size={14} color={currentTheme.primary} />
-                      <span>Geprüfter Meister- & Fachbetrieb</span>
+                  </div>
+
+                  <div className="mock-hero-visual">
+                    <div
+                      className="hero-img-wrapper"
+                      style={{ borderColor: currentTheme.border }}
+                    >
+                      <img
+                        src={content.heroImage}
+                        alt={company.name}
+                        className="hero-img"
+                      />
+                      <div
+                        className="floating-glass-card"
+                        style={{
+                          background: `${currentTheme.cardBg}eb`,
+                          borderColor: currentTheme.border,
+                        }}
+                      >
+                        <div
+                          className="floating-icon"
+                          style={{ background: currentTheme.primary, color: "#ffffff" }}
+                        >
+                          🏆
+                        </div>
+                        <div>
+                          <strong>Meisterqualität & Festpreis-Garantie</strong>
+                          <span>Ausgezeichnete Handwerksarbeit vor Ort</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
+              </section>
+            )}
 
-                {/* Hero Visual Card */}
-                <div className="mock-hero-visual">
-                  <div
-                    className="hero-img-wrapper"
-                    style={{ borderColor: currentTheme.border }}
-                  >
-                    <img
-                      src={content.heroImage}
-                      alt={company.name}
-                      className="hero-img"
-                    />
+            {/* LAYOUT D: MODERN & INNOVATIV (Clean Bento & Tech) */}
+            {selectedStyle === "modern-tech" && (
+              <section className="mock-hero-section">
+                <div className="mock-hero-container">
+                  <div className="mock-hero-content">
                     <div
-                      className="floating-glass-card"
+                      className="mock-kicker-pill"
                       style={{
-                        background: `${currentTheme.cardBg}eb`,
-                        borderColor: currentTheme.border,
+                        background: `${currentTheme.primary}18`,
+                        color: currentTheme.primary,
+                        border: `1px solid ${currentTheme.primary}35`,
                       }}
                     >
-                      <div
-                        className="floating-icon"
-                        style={{ background: currentTheme.primary, color: "#ffffff" }}
+                      <span className="modern-status-dot" />
+                      <span>Digitaler 24/7 Service · {company.city}</span>
+                    </div>
+
+                    <h1 className="mock-hero-h1">
+                      {isEditing ? (
+                        <textarea
+                          className="inline-textarea"
+                          value={content.heroTitle}
+                          onChange={(e) =>
+                            setContent({ ...content, heroTitle: e.target.value })
+                          }
+                        />
+                      ) : (
+                        content.heroTitle
+                      )}
+                    </h1>
+
+                    <p className="mock-hero-p" style={{ color: currentTheme.mutedText }}>
+                      {content.heroDescription}
+                    </p>
+
+                    <div className="mock-hero-btn-row">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenBooking(content.heroCta)}
+                        className="mock-primary-cta"
+                        style={{
+                          background: currentTheme.primary,
+                          color: "#ffffff",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
                       >
-                        ✓
+                        {content.heroCta} <ChevronRight size={16} />
+                      </button>
+                      <a
+                        href="#process"
+                        className="mock-secondary-cta"
+                        style={{
+                          borderColor: currentTheme.border,
+                          color: currentTheme.text,
+                          background: currentTheme.cardBg,
+                        }}
+                      >
+                        Ablauf ansehen
+                      </a>
+                    </div>
+
+                    {/* Bento Mini Features */}
+                    <div className="bento-mini-preview-grid">
+                      <div
+                        className="bento-mini-card"
+                        style={{ background: currentTheme.cardBg, border: `1px solid ${currentTheme.border}` }}
+                      >
+                        <Clock size={16} color={currentTheme.primary} />
+                        <strong>Schnelle Termine</strong>
+                        <span style={{ fontSize: "0.75rem", color: currentTheme.mutedText }}>
+                          Online buchbar in 60s
+                        </span>
                       </div>
-                      <div>
-                        <strong>24/7 Sofort-Anfrage</strong>
-                        <span>Rückmeldung in unter 24 Stunden</span>
+                      <div
+                        className="bento-mini-card"
+                        style={{ background: currentTheme.cardBg, border: `1px solid ${currentTheme.border}` }}
+                      >
+                        <CheckCircle2 size={16} color={currentTheme.primary} />
+                        <strong>100% Transparent</strong>
+                        <span style={{ fontSize: "0.75rem", color: currentTheme.mutedText }}>
+                          Festpreis ohne Aufschläge
+                        </span>
                       </div>
                     </div>
                   </div>
+
+                  <div className="mock-hero-visual">
+                    <div
+                      className="hero-img-wrapper"
+                      style={{ borderColor: currentTheme.border }}
+                    >
+                      <img
+                        src={content.heroImage}
+                        alt={company.name}
+                        className="hero-img"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            )}
 
             {/* 3. Live Stats & Metrics Counter Strip */}
             {content.stats && content.stats.length > 0 && (
