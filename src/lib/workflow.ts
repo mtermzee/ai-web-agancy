@@ -44,11 +44,13 @@ export function createDefaultWorkflow(company: Company): CompanyWorkflowState {
     outreach: buildDefaultOutreachDraft(company),
     activities: [
       {
-        id: `seed-analysis-${company.id}`,
-        type: "analysis",
-        title: "Website analysis completed",
-        detail: `Overall website score: ${company.scores.overall}/100`,
-        createdAt: company.lastAnalyzedAt,
+        id: `activity-init-${company.id}-${Date.now().toString(36)}`,
+        type: "lead",
+        title: "Lead added to CRM",
+        detail: company.hasWebsite
+          ? `Website: ${company.website}`
+          : "No website detected (High potential)",
+        createdAt: new Date().toISOString(),
       },
     ],
   };

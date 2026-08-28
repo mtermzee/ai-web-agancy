@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { companies as seedCompanies } from "@/data/companies";
+import { demoCompanies } from "@/data/demoCompanies";
 import {
   deleteAllCompanies,
   deleteCompany as deleteCompanyRemote,
@@ -61,7 +61,7 @@ function activityId(type: string) {
 }
 
 export function CompanyStoreProvider({ children }: { children: React.ReactNode }) {
-  const [baseCompanies, setBaseCompanies] = useState<Company[]>(seedCompanies);
+  const [baseCompanies, setBaseCompanies] = useState<Company[]>([]);
   const [overrides, setOverrides] = useState<WorkflowOverrides>({});
   const [hydrated, setHydrated] = useState(false);
   const [dataSource, setDataSource] = useState<DataSource>("local");
@@ -377,7 +377,7 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
   );
 
   const deleteDemoData = useCallback(async () => {
-    const demoIds = seedCompanies.map((c) => c.id);
+    const demoIds = demoCompanies.map((c) => c.id);
     const demoSet = new Set(demoIds);
 
     setBaseCompanies((prev) => prev.filter((c) => !demoSet.has(c.id)));
@@ -420,14 +420,14 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
   }, [dataSource, syncFromSupabase]);
 
   const loadDemoData = useCallback(async () => {
-    setBaseCompanies(seedCompanies);
+    setBaseCompanies(demoCompanies);
     setOverrides({});
     setSyncError(null);
 
     if (dataSource === "supabase") {
       setSyncing(true);
       try {
-        await seedSupabaseDemoData(seedCompanies);
+        await seedSupabaseDemoData(demoCompanies);
         await syncFromSupabase();
       } catch (error) {
         setSyncError(error instanceof Error ? error.message : "Load demo data failed.");

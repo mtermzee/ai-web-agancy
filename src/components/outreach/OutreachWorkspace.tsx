@@ -69,7 +69,7 @@ export function OutreachWorkspace({ initialCompanyId }: { initialCompanyId?: str
       <label className="editor-field"><span>Message</span><textarea className="outreach-message" value={message} onChange={(event) => { setMessage(event.target.value); setDirty(true); }}/></label>
 
       <div className="outreach-editor-footer">
-        <div className="draft-meta"><Sparkles size={14}/><span>Gemini-style personalization is simulated from the dummy analysis.</span></div>
+        <div className="draft-meta"><Sparkles size={14}/><span>Personalized outreach generated from company analysis.</span></div>
         <div className="header-actions"><button className="button secondary" disabled={!dirty} onClick={save}><Save size={15}/>Save draft</button><button className={`button ${workflow.outreach.approved ? "secondary" : "success-button"}`} disabled={dirty} onClick={() => setOutreachApproved(company.id, !workflow.outreach.approved)}>{workflow.outreach.approved ? "Remove approval" : "Approve draft"}</button></div>
       </div>
     </section>

@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Eye, LayoutTemplate, RotateCcw, XCircle } from "lucide-react";
+import { CheckCircle2, Eye, LayoutTemplate, RefreshCw, XCircle } from "lucide-react";
 import { PotentialBadge, StatusBadge } from "@/components/ui/Badge";
 import { ScoreChip } from "@/components/ui/ScoreChip";
 import { useCompanyStore } from "@/components/providers/CompanyStoreProvider";
 
 export function ReviewQueue() {
-  const { companies, getWorkflow, updateStatus, markMockupReady, resetDemoData } = useCompanyStore();
+  const { companies, getWorkflow, updateStatus, markMockupReady, syncFromSupabase, syncing } = useCompanyStore();
   const reviewCompanies = companies
     .filter((company) => ["Needs Review", "High Potential", "Mockup Ready"].includes(company.status))
     .sort((a, b) => (getWorkflow(b.id)?.leadScore ?? 0) - (getWorkflow(a.id)?.leadScore ?? 0));
@@ -17,7 +17,10 @@ export function ReviewQueue() {
       <div><strong>{reviewCompanies.length}</strong><span>items in review flow</span></div>
       <div><strong>{reviewCompanies.filter((company) => (getWorkflow(company.id)?.leadScore ?? 0) >= 80).length}</strong><span>lead score ≥ 80</span></div>
       <div><strong>{reviewCompanies.filter((company) => company.mockupReady).length}</strong><span>mockups ready</span></div>
-      <button className="button secondary" onClick={resetDemoData}><RotateCcw size={15}/>Reset demo state</button>
+      <button className="button secondary" onClick={() => void syncFromSupabase()} disabled={syncing}>
+        <RefreshCw size={15} className={syncing ? "spin-icon" : ""}/>
+        {syncing ? "Syncing…" : "Sync CRM"}
+      </button>
     </div>
     <div className="review-grid">
       {reviewCompanies.map((company) => {

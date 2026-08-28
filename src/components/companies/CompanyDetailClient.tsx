@@ -59,7 +59,7 @@ export function CompanyDetailClient({ initialCompany }: { initialCompany: Compan
     <div className="detail-grid">
       <div className="detail-stack">
         <section className="card panel">
-          <div className="panel-header"><div><h2>Company information</h2><div className="panel-note">Public business data · dummy source</div></div><div className="badge-row"><StatusBadge status={company.status}/><PotentialBadge potential={company.potential}/></div></div>
+          <div className="panel-header"><div><h2>Company information</h2><div className="panel-note">Public business data & verified profile</div></div><div className="badge-row"><StatusBadge status={company.status}/><PotentialBadge potential={company.potential}/></div></div>
           <div className="workflow-strip"><div><span className="workflow-label">Lead status</span><StatusSelect value={company.status} onChange={(status: LeadStatus) => updateStatus(company.id, status)}/></div><button className="button secondary" onClick={() => sendToReview(company.id)} disabled={company.status === "Needs Review"}>Send to review</button><span className={`save-state ${company.mockupReady ? "ready" : ""}`}>{company.mockupReady ? "Mockup generated" : "No mockup yet"}</span></div>
           <div className="info-grid">
             <div className="info-item"><div className="info-label">Address</div><div className="info-value"><MapPin size={14} className="inline-icon"/>{company.address}, {company.city}</div></div>
