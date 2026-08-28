@@ -1,4 +1,4 @@
-import type { MockupContent, MockupTheme } from "@/types/mockup";
+import type { MockupContent, MockupStyle, MockupTheme } from "@/types/mockup";
 import type { Company } from "@/types/company";
 
 export type IndustryAssetPreset = {
@@ -343,6 +343,41 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
   };
 }
 
+export const STYLE_CONFIG: Record<
+  MockupStyle,
+  {
+    name: string;
+    description: string;
+    icon: string;
+    recommendedTheme: MockupTheme;
+  }
+> = {
+  conversion: {
+    name: "Conversion Booster",
+    description: "Fokus auf direkte Terminanfragen, hohe Dringlichkeit & Vertrauens-Signale",
+    icon: "🎯",
+    recommendedTheme: "clean-blue",
+  },
+  premium: {
+    name: "Premium & Luxury",
+    description: "Exklusives Design, hochwertige Ästhetik & anspruchsvolle Markenidentität",
+    icon: "✨",
+    recommendedTheme: "dark-luxury",
+  },
+  "local-trust": {
+    name: "Regionaler Meisterbetrieb",
+    description: "Fokus auf Handwerkstradition, Kundennähe & geprüfte Meisterqualität",
+    icon: "🤝",
+    recommendedTheme: "craft-gold",
+  },
+  "modern-tech": {
+    name: "Modern & Innovativ",
+    description: "Frisches, zukunftsorientiertes Layout mit smarter digitaler Nutzerführung",
+    icon: "⚡",
+    recommendedTheme: "emerald-fresh",
+  },
+};
+
 export function generateDefaultMockupContent(company: Company): MockupContent {
   const preset = getIndustryPreset(company.industry, company.city);
   const name = company.name || "Ihr Betrieb";
@@ -351,18 +386,44 @@ export function generateDefaultMockupContent(company: Company): MockupContent {
 
   return {
     theme: preset.defaultTheme,
+    styleVariant: "conversion",
     heroKicker: `${name} · ${industry} in ${city}`,
     heroTitle: `${name} – Qualität, Vertrauen & erstklassiger Service in ${city}.`,
     heroDescription: `${name} ist Ihr verlässlicher Partner in ${city}. Wir bieten Ihnen maßgeschneiderte Lösungen, persönliche Beratung und termingerechte Ausführung.`,
     heroCta: "Online Termin / Angebot anfragen",
     heroSecondaryCta: "Leistungen entdecken",
     heroImage: preset.heroImage,
+    stats: [
+      { value: "15+ Jahre", label: "Regionale Erfahrung" },
+      { value: "4.9 ★", label: "Google Bewertung" },
+      { value: "100%", label: "Zufriedenheitsgarantie" },
+      { value: "< 24h", label: "Schnelle Rückmeldung" },
+    ],
     servicesTitle: "Unsere Leistungen im Überblick",
     servicesSubtitle: `Professionelle Angebote von ${name} für Privat- und Gewerbekunden in ${city}`,
     services: preset.defaultServices.map((s, idx) => ({
       ...s,
       image: preset.serviceImages[idx] || preset.serviceImages[0],
     })),
+    processTitle: "In 3 einfachen Schritten zum Ziel",
+    processSubtitle: "Schnell, unkompliziert und transparent – so arbeiten wir mit Ihnen zusammen.",
+    processSteps: [
+      {
+        stepNumber: "01",
+        title: "Kostenlose Anfrage",
+        description: "Kontaktieren Sie uns online oder telefonisch und schildern Sie Ihr Anliegen unverbindlich.",
+      },
+      {
+        stepNumber: "02",
+        title: "Persönliche Beratung & Angebot",
+        description: "Wir analysieren Ihren Bedarf und erstellen ein transparentes Festpreis-Angebot ohne versteckte Kosten.",
+      },
+      {
+        stepNumber: "03",
+        title: "Meisterhafte Umsetzung",
+        description: "Unser erfahrenes Team setzt Ihr Projekt termintreu, sauber und in höchster Qualität um.",
+      },
+    ],
     aboutTitle: `Über ${name} in ${city}`,
     aboutText: `Als inhabergeführter Fachbetrieb legen wir bei ${name} größten Wert auf Kundenzufriedenheit, transparente Preise und meisterhafte Ausführung. Mit langjähriger Erfahrung sind wir Ihr Ansprechpartner in ${city} und Umgebung.`,
     aboutImage: preset.aboutImage,
@@ -380,6 +441,22 @@ export function generateDefaultMockupContent(company: Company): MockupContent {
         author: "Sandra K.",
         role: "Kundin",
         rating: 5,
+      },
+    ],
+    faqTitle: "Häufig gestellte Fragen (FAQ)",
+    faqSubtitle: "Alles, was Sie vor Ihrer Anfrage wissen müssen.",
+    faqs: [
+      {
+        question: `Wie schnell erhalte ich eine Rückmeldung von ${name}?`,
+        answer: "In der Regel antworten wir innerhalb von 24 Stunden an Werktagen auf Ihre Anfrage und vereinbaren direkt einen passenden Termin.",
+      },
+      {
+        question: "Gibt es versteckte Kosten?",
+        answer: "Nein. Wir stehen für transparente Festpreise und besprechen alle Kostenpositionen vorab verbindlich mit Ihnen.",
+      },
+      {
+        question: `Bietet ${name} auch Notfall- oder Express-Termine an?`,
+        answer: "Ja, bei dringenden Anliegen oder Notfällen bemühen wir uns stets um eine zeitnahe Betreuung am selben Tag.",
       },
     ],
     ctaTitle: `Bereit für Ihr Projekt mit ${name}?`,

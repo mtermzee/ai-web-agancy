@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { company?: Company; companyId?: string };
+  let body: { company?: Company; companyId?: string; style?: import("@/types/mockup").MockupStyle };
   try {
     body = await request.json();
   } catch {
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const mockupContent = await generateMockupWithGemini(company);
+    const mockupContent = await generateMockupWithGemini(company, body.style);
 
     // Save mockup status in Supabase if company exists in db
     if (company.id) {

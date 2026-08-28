@@ -4,9 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
+  Calendar,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
+  Clock,
   ExternalLink,
+  HelpCircle,
   Laptop,
   Loader2,
   MapPin,
@@ -17,20 +21,25 @@ import {
   Phone,
   RotateCcw,
   Save,
+  Send,
   Share2,
   Smartphone,
   Sparkles,
   Star,
   Tablet,
+  TrendingUp,
+  User,
   X,
+  Zap,
 } from "lucide-react";
 import { useCompanyStore } from "@/components/providers/CompanyStoreProvider";
 import {
   generateDefaultMockupContent,
+  STYLE_CONFIG,
   THEME_CONFIG,
 } from "@/lib/mockups/mockupAssets";
 import type { Company } from "@/types/company";
-import type { MockupContent, MockupTheme } from "@/types/mockup";
+import type { MockupContent, MockupStyle, MockupTheme } from "@/types/mockup";
 
 type DeviceMode = "desktop" | "tablet" | "mobile";
 
@@ -40,6 +49,7 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
 
   const [device, setDevice] = useState<DeviceMode>("desktop");
   const [theme, setTheme] = useState<MockupTheme>("clean-blue");
+  const [selectedStyle, setSelectedStyle] = useState<MockupStyle>("conversion");
   const [content, setContent] = useState<MockupContent>(() =>
     generateDefaultMockupContent(company),
   );
@@ -50,6 +60,20 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Interactive FAQ Accordion state
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+
+  // Interactive Booking Modal Simulation state
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [bookingForm, setBookingForm] = useState({
+    name: "",
+    phone: "",
+    service: "",
+    date: "",
+    notes: "",
+  });
+
   // Initialize theme and content from localStorage or default preset
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -59,6 +83,7 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
           const parsed = JSON.parse(saved) as MockupContent;
           setContent(parsed);
           if (parsed.theme) setTheme(parsed.theme);
+          if (parsed.styleVariant) setSelectedStyle(parsed.styleVariant);
           return;
         } catch {
           // fallback
@@ -68,6 +93,7 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
     const defaultContent = generateDefaultMockupContent(company);
     setContent(defaultContent);
     setTheme(defaultContent.theme);
+    if (defaultContent.styleVariant) setSelectedStyle(defaultContent.styleVariant);
   }, [company.id]);
 
   // Save changes to localStorage
@@ -80,17 +106,23 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
 
   const currentTheme = THEME_CONFIG[theme] || THEME_CONFIG["clean-blue"];
 
-  const handleGenerateAI = async () => {
+  const handleGenerateAI = async (styleToUse?: MockupStyle) => {
     if (generating) return;
     setGenerating(true);
     setErrorMessage(null);
     setFeedbackMessage(null);
 
+    const styleVariant = styleToUse || selectedStyle;
+
     try {
       const res = await fetch("/api/ai/generate-mockup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company, companyId: company.id }),
+        body: JSON.stringify({
+          company,
+          companyId: company.id,
+          style: styleVariant,
+        }),
       });
 
       const data = await res.json();
@@ -102,9 +134,12 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
       if (data.mockupContent.theme) {
         setTheme(data.mockupContent.theme);
       }
+      setSelectedStyle(styleVariant);
       markMockupReady(company.id);
-      setFeedbackMessage("KI-Konzept erfolgreich neu generiert!");
-      setTimeout(() => setFeedbackMessage(null), 4000);
+      setFeedbackMessage(
+        `✨ KI-Konzept (${STYLE_CONFIG[styleVariant]?.name || "Mockup"}) erfolgreich generiert!`,
+      );
+      setTimeout(() => setFeedbackMessage(null), 4500);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "KI-Generierung fehlgeschlagen";
       setErrorMessage(msg);
@@ -120,6 +155,20 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
     }
+  };
+
+  const handleOpenBooking = (defaultServiceTitle?: string) => {
+    setBookingForm((prev) => ({
+      ...prev,
+      service: defaultServiceTitle || content.services[0]?.title || "Allgemeine Beratung",
+    }));
+    setBookingSuccess(false);
+    setIsBookingModalOpen(true);
+  };
+
+  const handleBookingSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setBookingSuccess(true);
   };
 
   return (
@@ -200,11 +249,36 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
         </div>
       </div>
 
-      {/* Theme Bar & Customization Row */}
+      {/* Theme & Style Bar */}
       <div className="studio-control-strip">
+        {/* Style Angle Selector */}
+        <div className="style-selector-group">
+          <span className="control-strip-label" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <Zap size={13} /> KI-Stil:
+          </span>
+          {(Object.keys(STYLE_CONFIG) as MockupStyle[]).map((sKey) => {
+            const s = STYLE_CONFIG[sKey];
+            return (
+              <button
+                key={sKey}
+                className={`style-chip ${selectedStyle === sKey ? "active" : ""}`}
+                onClick={() => {
+                  setSelectedStyle(sKey);
+                  void handleGenerateAI(sKey);
+                }}
+                title={s.description}
+              >
+                <span>{s.icon}</span>
+                <span>{s.name}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Theme Selector */}
         <div className="theme-selector-group">
           <span className="control-strip-label">
-            <Palette size={13} /> Design Theme:
+            <Palette size={13} /> Palette:
           </span>
           {(Object.keys(THEME_CONFIG) as MockupTheme[]).map((tKey) => {
             const t = THEME_CONFIG[tKey];
@@ -345,16 +419,19 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                   </nav>
                 )}
 
-                <a
-                  href="#contact"
+                <button
+                  type="button"
+                  onClick={() => handleOpenBooking(content.heroCta)}
                   className="mock-cta-btn"
                   style={{
                     background: currentTheme.primary,
                     color: "#ffffff",
+                    border: "none",
+                    cursor: "pointer",
                   }}
                 >
                   {content.heroCta}
-                </a>
+                </button>
               </div>
             </header>
 
@@ -422,16 +499,19 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                   </p>
 
                   <div className="mock-hero-btn-row">
-                    <a
-                      href="#contact"
+                    <button
+                      type="button"
+                      onClick={() => handleOpenBooking(content.heroCta)}
                       className="mock-primary-cta"
                       style={{
                         background: currentTheme.primary,
                         color: "#ffffff",
+                        border: "none",
+                        cursor: "pointer",
                       }}
                     >
                       {content.heroCta} <ChevronRight size={16} />
-                    </a>
+                    </button>
                     <a
                       href="#services"
                       className="mock-secondary-cta"
@@ -456,7 +536,7 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                         <Star size={13} fill="#f59e0b" color="#f59e0b" />
                       </div>
                       <span>
-                        <strong>4.9 / 5</strong> aus 50+ Kundenstimmen
+                        <strong>4.9 / 5</strong> Google Bewertung
                       </span>
                     </div>
                     <div className="trust-item">
@@ -492,7 +572,7 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                       </div>
                       <div>
                         <strong>24/7 Sofort-Anfrage</strong>
-                        <span>Terminbestätigung in unter 60 Sek.</span>
+                        <span>Rückmeldung in unter 24 Stunden</span>
                       </div>
                     </div>
                   </div>
@@ -500,12 +580,75 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
               </div>
             </section>
 
-            {/* 3. Services Grid Section */}
+            {/* 3. Live Stats & Metrics Counter Strip */}
+            {content.stats && content.stats.length > 0 && (
+              <section
+                className="mock-stats-bar-section"
+                style={{
+                  background: currentTheme.cardBg,
+                  borderColor: currentTheme.border,
+                }}
+              >
+                <div className="mock-stats-container">
+                  {content.stats.map((st, sIdx) => (
+                    <div
+                      key={sIdx}
+                      className="mock-stat-card"
+                      style={{
+                        background: currentTheme.bg,
+                        borderColor: currentTheme.border,
+                      }}
+                    >
+                      <span
+                        className="mock-stat-value"
+                        style={{ color: currentTheme.primary }}
+                      >
+                        {isEditing ? (
+                          <input
+                            className="inline-input"
+                            style={{ textAlign: "center", fontWeight: 800 }}
+                            value={st.value}
+                            onChange={(e) => {
+                              const next = [...(content.stats || [])];
+                              next[sIdx] = { ...next[sIdx], value: e.target.value };
+                              setContent({ ...content, stats: next });
+                            }}
+                          />
+                        ) : (
+                          st.value
+                        )}
+                      </span>
+                      <span
+                        className="mock-stat-label"
+                        style={{ color: currentTheme.mutedText }}
+                      >
+                        {isEditing ? (
+                          <input
+                            className="inline-input"
+                            style={{ textAlign: "center", fontSize: "0.75rem" }}
+                            value={st.label}
+                            onChange={(e) => {
+                              const next = [...(content.stats || [])];
+                              next[sIdx] = { ...next[sIdx], label: e.target.value };
+                              setContent({ ...content, stats: next });
+                            }}
+                          />
+                        ) : (
+                          st.label
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* 4. Services Grid Section */}
             <section
               id="services"
               className="mock-services-section"
               style={{
-                background: currentTheme.cardBg,
+                background: currentTheme.bg,
                 borderColor: currentTheme.border,
               }}
             >
@@ -528,7 +671,7 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                     key={idx}
                     className="mock-service-card"
                     style={{
-                      background: currentTheme.bg,
+                      background: currentTheme.cardBg,
                       borderColor: currentTheme.border,
                     }}
                   >
@@ -583,20 +726,106 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                           srv.description
                         )}
                       </p>
-                      <a
-                        href="#contact"
+                      <button
+                        type="button"
+                        onClick={() => handleOpenBooking(srv.title)}
                         className="service-card-link"
-                        style={{ color: currentTheme.primary }}
+                        style={{
+                          color: currentTheme.primary,
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: 0,
+                          textAlign: "left",
+                        }}
                       >
                         Jetzt anfragen <ChevronRight size={14} />
-                      </a>
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
             </section>
 
-            {/* 4. About Us & Trust Section */}
+            {/* 5. Process / 3-Step Flow Section */}
+            {content.processSteps && content.processSteps.length > 0 && (
+              <section
+                id="process"
+                className="mock-process-section"
+                style={{
+                  background: currentTheme.cardBg,
+                  borderColor: currentTheme.border,
+                }}
+              >
+                <div className="section-header-centered">
+                  <span
+                    className="section-sub-kicker"
+                    style={{ color: currentTheme.primary }}
+                  >
+                    ABLAUF
+                  </span>
+                  <h2>{content.processTitle || "In 3 einfachen Schritten zum Ziel"}</h2>
+                  <p style={{ color: currentTheme.mutedText }}>
+                    {content.processSubtitle || "Transparent, zuverlässig und unkompliziert."}
+                  </p>
+                </div>
+
+                <div className="mock-process-grid">
+                  {content.processSteps.map((step, pIdx) => (
+                    <div
+                      key={pIdx}
+                      className="mock-process-card"
+                      style={{
+                        background: currentTheme.bg,
+                        borderColor: currentTheme.border,
+                      }}
+                    >
+                      <div
+                        className="process-step-badge"
+                        style={{
+                          background: `${currentTheme.primary}20`,
+                          color: currentTheme.primary,
+                        }}
+                      >
+                        {step.stepNumber}
+                      </div>
+                      <h3>
+                        {isEditing ? (
+                          <input
+                            className="inline-input"
+                            value={step.title}
+                            onChange={(e) => {
+                              const next = [...(content.processSteps || [])];
+                              next[pIdx] = { ...next[pIdx], title: e.target.value };
+                              setContent({ ...content, processSteps: next });
+                            }}
+                          />
+                        ) : (
+                          step.title
+                        )}
+                      </h3>
+                      <p style={{ color: currentTheme.mutedText }}>
+                        {isEditing ? (
+                          <textarea
+                            className="inline-textarea"
+                            value={step.description}
+                            onChange={(e) => {
+                              const next = [...(content.processSteps || [])];
+                              next[pIdx] = { ...next[pIdx], description: e.target.value };
+                              setContent({ ...content, processSteps: next });
+                            }}
+                          />
+                        ) : (
+                          step.description
+                        )}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* 6. About Us & Trust Section */}
             <section id="about" className="mock-about-section">
               <div className="mock-about-container">
                 <div className="mock-about-img-col">
@@ -684,7 +913,7 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
               </div>
             </section>
 
-            {/* 5. Testimonials & Google Ratings */}
+            {/* 7. Testimonials & Google Ratings */}
             <section
               id="reviews"
               className="mock-testimonials-section"
@@ -768,7 +997,84 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
               </div>
             </section>
 
-            {/* 6. Contact & Direct Booking Banner */}
+            {/* 8. Interactive FAQ Section */}
+            {content.faqs && content.faqs.length > 0 && (
+              <section
+                id="faq"
+                className="mock-faq-section"
+                style={{
+                  background: currentTheme.bg,
+                  borderColor: currentTheme.border,
+                }}
+              >
+                <div className="section-header-centered">
+                  <span
+                    className="section-sub-kicker"
+                    style={{ color: currentTheme.primary }}
+                  >
+                    FRAGEN & ANTWORTEN
+                  </span>
+                  <h2>{content.faqTitle || "Häufig gestellte Fragen (FAQ)"}</h2>
+                  <p style={{ color: currentTheme.mutedText }}>
+                    {content.faqSubtitle || "Die wichtigsten Antworten auf einen Blick."}
+                  </p>
+                </div>
+
+                <div className="mock-faq-container">
+                  {content.faqs.map((faq, fIdx) => {
+                    const isOpen = openFaqIndex === fIdx;
+                    return (
+                      <div
+                        key={fIdx}
+                        className="mock-faq-item"
+                        style={{
+                          background: currentTheme.cardBg,
+                          borderColor: currentTheme.border,
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className="mock-faq-question-btn"
+                          onClick={() => setOpenFaqIndex(isOpen ? null : fIdx)}
+                        >
+                          <span>{faq.question}</span>
+                          <ChevronDown
+                            size={18}
+                            style={{
+                              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                              transition: "transform 0.2s ease",
+                              color: currentTheme.primary,
+                            }}
+                          />
+                        </button>
+                        {isOpen && (
+                          <div
+                            className="mock-faq-answer"
+                            style={{ color: currentTheme.mutedText }}
+                          >
+                            {isEditing ? (
+                              <textarea
+                                className="inline-textarea"
+                                value={faq.answer}
+                                onChange={(e) => {
+                                  const next = [...(content.faqs || [])];
+                                  next[fIdx] = { ...next[fIdx], answer: e.target.value };
+                                  setContent({ ...content, faqs: next });
+                                }}
+                              />
+                            ) : (
+                              faq.answer
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* 9. Contact & Direct Booking Banner */}
             <section
               id="contact"
               className="mock-cta-banner-section"
@@ -822,11 +1128,7 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
 
                   <button
                     className="banner-cta-button"
-                    onClick={() =>
-                      alert(
-                        `Termin- oder Angebotsanfrage für ${company.name} erfolgreich simuliert!`,
-                      )
-                    }
+                    onClick={() => handleOpenBooking(content.ctaButton)}
                   >
                     {content.ctaButton}
                   </button>
@@ -834,7 +1136,7 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
               </div>
             </section>
 
-            {/* 7. Footer */}
+            {/* 10. Footer */}
             <footer
               className="mock-site-footer"
               style={{
@@ -869,11 +1171,14 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                   <a href="#services" style={{ color: currentTheme.mutedText }}>
                     Leistungen
                   </a>
+                  <a href="#process" style={{ color: currentTheme.mutedText }}>
+                    Ablauf
+                  </a>
                   <a href="#about" style={{ color: currentTheme.mutedText }}>
                     Über uns
                   </a>
-                  <a href="#contact" style={{ color: currentTheme.mutedText }}>
-                    Kontakt
+                  <a href="#faq" style={{ color: currentTheme.mutedText }}>
+                    FAQ
                   </a>
                   <span style={{ color: currentTheme.mutedText }}>Impressum</span>
                   <span style={{ color: currentTheme.mutedText }}>Datenschutz</span>
@@ -892,6 +1197,126 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
             </footer>
           </div>
 
+          {/* Interactive Simulated Lead/Booking Modal */}
+          {isBookingModalOpen && (
+            <div
+              className="mock-modal-backdrop"
+              onClick={() => setIsBookingModalOpen(false)}
+            >
+              <div
+                className="mock-booking-modal"
+                style={{
+                  background: currentTheme.cardBg,
+                  borderColor: currentTheme.border,
+                  color: currentTheme.text,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="mock-modal-header">
+                  <div>
+                    <h3>Termin & Angebot anfragen</h3>
+                    <p style={{ color: currentTheme.mutedText }}>
+                      Unverbindliche Anfrage an {company.name} in {company.city}
+                    </p>
+                  </div>
+                  <button
+                    className="mock-close-btn"
+                    style={{ color: currentTheme.mutedText }}
+                    onClick={() => setIsBookingModalOpen(false)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {bookingSuccess ? (
+                  <div className="mock-modal-success">
+                    <div
+                      className="mock-success-circle"
+                      style={{ background: currentTheme.primary }}
+                    >
+                      ✓
+                    </div>
+                    <h4 style={{ margin: 0, fontSize: "1.1rem" }}>
+                      Anfrage erfolgreich simuliert!
+                    </h4>
+                    <p style={{ color: currentTheme.mutedText, fontSize: "0.85rem", margin: 0 }}>
+                      Vielen Dank, {bookingForm.name || "Herr/Frau Kunde"}. {company.name} wird sich
+                      in Kürze bezüglich Ihrer Anfrage zu „{bookingForm.service}“ melden.
+                    </p>
+                    <button
+                      className="mock-submit-btn"
+                      style={{ background: currentTheme.primary, color: "#ffffff" }}
+                      onClick={() => setIsBookingModalOpen(false)}
+                    >
+                      Schließen
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleBookingSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div className="mock-form-group">
+                      <label>Gewünschte Leistung</label>
+                      <input
+                        className="mock-input"
+                        value={bookingForm.service}
+                        onChange={(e) =>
+                          setBookingForm({ ...bookingForm, service: e.target.value })
+                        }
+                        placeholder="z. B. Beratung, Reparatur, Termin..."
+                        required
+                      />
+                    </div>
+
+                    <div className="mock-form-group">
+                      <label>Ihr Name</label>
+                      <input
+                        className="mock-input"
+                        value={bookingForm.name}
+                        onChange={(e) =>
+                          setBookingForm({ ...bookingForm, name: e.target.value })
+                        }
+                        placeholder="Max Mustermann"
+                        required
+                      />
+                    </div>
+
+                    <div className="mock-form-group">
+                      <label>Telefon oder E-Mail</label>
+                      <input
+                        className="mock-input"
+                        value={bookingForm.phone}
+                        onChange={(e) =>
+                          setBookingForm({ ...bookingForm, phone: e.target.value })
+                        }
+                        placeholder="0170 1234567 oder max@beispiel.de"
+                        required
+                      />
+                    </div>
+
+                    <div className="mock-form-group">
+                      <label>Wunsch-Termin / Anmerkung (Optional)</label>
+                      <input
+                        className="mock-input"
+                        value={bookingForm.notes}
+                        onChange={(e) =>
+                          setBookingForm({ ...bookingForm, notes: e.target.value })
+                        }
+                        placeholder="z. B. zeitnah nächste Woche vormittags"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="mock-submit-btn"
+                      style={{ background: currentTheme.primary, color: "#ffffff" }}
+                    >
+                      Jetzt Anfrage absenden
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Loading Overlay */}
           {generating && (
             <div className="mockup-generating-overlay">
@@ -899,8 +1324,8 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                 <Loader2 size={36} className="spin-icon" color="#0284c7" />
                 <h3>Gemini KI generiert dein Website-Konzept…</h3>
                 <p>
-                  Analysiere {company.name} in {company.city}, erstelle
-                  branchenspezifische Headlines, Leistungs-Karten und Kunden-Testimonials.
+                  Erstelle personalisierte Headlines, Leistungs-Karten, Prozess-Schritte und FAQ
+                  im Stil „{STYLE_CONFIG[selectedStyle]?.name}“ für {company.name}.
                 </p>
               </div>
             </div>
