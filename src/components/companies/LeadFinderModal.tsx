@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  AlertCircle,
   Check,
   CheckCircle2,
   ExternalLink,
@@ -10,6 +11,7 @@ import {
   MapPin,
   Phone,
   Plus,
+  RefreshCw,
   Search,
   Sparkles,
   X,
@@ -37,8 +39,59 @@ type Props = {
   onClose: () => void;
 };
 
+type ConfirmImportState = {
+  isOpen: boolean;
+  toImport: Company[];
+  newCount: number;
+  existingCount: number;
+  updatedItems: Array<{ company: Company; diffs: string[] }>;
+};
+
+function findExistingMatch(lead: Company, crmList: Company[]): Company | undefined {
+  const normLeadName = lead.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const normLeadCity = lead.city.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  return crmList.find((c) => {
+    if (c.id === lead.id) return true;
+    const cName = c.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const cCity = c.city.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (cName === normLeadName && (cCity === normLeadCity || !cCity || !normLeadCity)) return true;
+    if (
+      lead.website &&
+      c.website &&
+      lead.website.replace(/^https?:\/\//, "").replace(/\/$/, "") ===
+        c.website.replace(/^https?:\/\//, "").replace(/\/$/, "")
+    ) {
+      return true;
+    }
+    return false;
+  });
+}
+
+function getLeadDifferences(lead: Company, existing: Company): string[] {
+  const diffs: string[] = [];
+  if (lead.phone && lead.phone !== existing.phone) {
+    diffs.push(`Telefonnummer neu: ${lead.phone}`);
+  }
+  if (lead.email && lead.email !== existing.email) {
+    diffs.push(`E-Mail neu: ${lead.email}`);
+  }
+  if (lead.website && lead.website !== existing.website) {
+    diffs.push(`Website aktualisiert: ${lead.website}`);
+  }
+  if (
+    lead.address &&
+    lead.address !== existing.address &&
+    lead.address !== `${existing.city} Zentrum` &&
+    !existing.address.includes(lead.address)
+  ) {
+    diffs.push(`Adresse ergänzt: ${lead.address}`);
+  }
+  return diffs;
+}
+
 export function LeadFinderModal({ isOpen, onClose }: Props) {
-  const { syncFromSupabase } = useCompanyStore();
+  const { syncFromSupabase, companies: existingCrmCompanies } = useCompanyStore();
   const [activeTab, setActiveTab] = useState<"osm" | "manual">("osm");
 
   // OSM Search State
@@ -52,6 +105,9 @@ export function LeadFinderModal({ isOpen, onClose }: Props) {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [leads, setLeads] = useState<Company[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState<ConfirmImportState | null>(null);
 
   // Import State
   const [importing, setImporting] = useState(false);
@@ -100,7 +156,9 @@ export function LeadFinderModal({ isOpen, onClose }: Props) {
       // Select all by default
       setSelectedIds(new Set(fetchedLeads.map((l: Company) => l.id)));
       if (!fetchedLeads.length) {
-        setSearchError("Keine Einträge für diese Suchkombination gefunden. Versuche eine andere Stadt oder einen breiteren Begriff.");
+        setSearchError(
+          "Keine Einträge für diese Suchkombination gefunden. Versuche eine andere Stadt oder einen breiteren Begriff.",
+        );
       }
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : "Suche fehlgeschlagen.");
@@ -169,10 +227,45 @@ export function LeadFinderModal({ isOpen, onClose }: Props) {
     }
   };
 
-  const handleImport = async () => {
+  const handleImportClick = () => {
     const toImport = leads.filter((l) => selectedIds.has(l.id));
     if (!toImport.length) return;
 
+    const newOnes: Company[] = [];
+    const existingOnes: Company[] = [];
+    const updatedItems: Array<{ company: Company; diffs: string[] }> = [];
+
+    for (const lead of toImport) {
+      const existing = findExistingMatch(lead, existingCrmCompanies);
+      if (existing) {
+        existingOnes.push(lead);
+        const diffs = getLeadDifferences(lead, existing);
+        if (diffs.length > 0) {
+          updatedItems.push({ company: lead, diffs });
+        }
+      } else {
+        newOnes.push(lead);
+      }
+    }
+
+    // If there are existing companies in the selection, ask first!
+    if (existingOnes.length > 0) {
+      setConfirmModal({
+        isOpen: true,
+        toImport,
+        newCount: newOnes.length,
+        existingCount: existingOnes.length,
+        updatedItems,
+      });
+      return;
+    }
+
+    // Otherwise import directly
+    void executeImport(toImport, false);
+  };
+
+  const executeImport = async (toImport: Company[], updateExisting: boolean) => {
+    setConfirmModal(null);
     setImporting(true);
     setSearchError(null);
 
@@ -180,7 +273,7 @@ export function LeadFinderModal({ isOpen, onClose }: Props) {
       const res = await fetch("/api/leads/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companies: toImport }),
+        body: JSON.stringify({ companies: toImport, updateExisting }),
       });
 
       const data = await res.json();
@@ -189,7 +282,19 @@ export function LeadFinderModal({ isOpen, onClose }: Props) {
       }
 
       await syncFromSupabase();
-      setImportSuccess(`${toImport.length} Leads erfolgreich ins CRM importiert!`);
+
+      let msg = "";
+      if (data.insertedCount > 0 && data.updatedCount > 0) {
+        msg = `${data.insertedCount} neue Leads angelegt & ${data.updatedCount} bestehende aktualisiert!`;
+      } else if (data.insertedCount > 0) {
+        msg = `${data.insertedCount} neue Leads erfolgreich ins CRM importiert!`;
+      } else if (data.updatedCount > 0) {
+        msg = `${data.updatedCount} bestehende Leads erfolgreich aktualisiert!`;
+      } else {
+        msg = `Keine neuen Leads importiert (${data.skippedCount || 0} unverändert übersprungen).`;
+      }
+
+      setImportSuccess(msg);
       // Remove imported from current list
       setLeads((prev) => prev.filter((l) => !selectedIds.has(l.id)));
       setSelectedIds(new Set());
@@ -248,10 +353,16 @@ export function LeadFinderModal({ isOpen, onClose }: Props) {
       aiSummary: `Manuell erfasster ${manualIndustry}-Betrieb in ${manualCity}.`,
       opportunity: hasWebsite
         ? "Website-Audit durchführen."
-        : "Neubau einer modernen Website.",
-      recommendation: "Mit Gemini analysieren.",
-      suggestedStructure: ["Hero", "Leistungen", "Über uns", "Kontakt"],
-      salesAngle: "Professioneller Webauftritt.",
+        : "Neubau einer modernen Website zur Neukundengewinnung.",
+      recommendation: "Führe eine KI-Analyse durch oder erstelle ein Mockup.",
+      suggestedStructure: [
+        "Hero-Bereich",
+        "Leistungen & Angebote",
+        "Über uns",
+        "Kundenstimmen",
+        "Kontakt",
+      ],
+      salesAngle: "Professioneller Webauftritt zur planbaren Kundengewinnung.",
       mockupReady: false,
     };
 
@@ -259,374 +370,573 @@ export function LeadFinderModal({ isOpen, onClose }: Props) {
       const res = await fetch("/api/leads/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companies: [newCompany] }),
+        body: JSON.stringify({ companies: [newCompany], updateExisting: true }),
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || `Speichern fehlgeschlagen (${res.status})`);
-      }
+      if (!res.ok) throw new Error(data.error || "Speichern fehlgeschlagen");
 
       await syncFromSupabase();
-      onClose();
+      setImportSuccess(`„${newCompany.name}“ erfolgreich im CRM angelegt!`);
+      setManualName("");
+      setManualAddress("");
+      setManualWebsite("");
+      setManualPhone("");
+      setManualEmail("");
     } catch (err) {
-      setManualError(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+      setManualError(err instanceof Error ? err.message : "Fehler beim Anlegen.");
     } finally {
       setImporting(false);
     }
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-content lead-finder-modal"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <div>
-            <div className="eyebrow">Lead Generator</div>
-            <h2>Unternehmen hinzufügen</h2>
+    <div className="lead-finder-modal-overlay" onClick={onClose}>
+      <div className="lead-finder-modal" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="lead-finder-header">
+          <div className="lead-finder-title">
+            <div className="lead-finder-badge">
+              <Globe size={13} />
+              OpenStreetMap Geosearch
+            </div>
+            <h2>Leads finden & anlegen</h2>
+            <p>
+              Finde echte lokale Unternehmen aus OpenStreetMap weltweit oder erstelle manuell
+              neue Leads.
+            </p>
           </div>
-          <button className="icon-button close-btn" onClick={onClose} aria-label="Schließen">
+          <button className="lead-finder-close" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
 
-        <div className="finder-tabs">
+        {/* Tab Switcher */}
+        <div className="lead-finder-tabs">
           <button
-            className={`tab-button ${activeTab === "osm" ? "active" : ""}`}
+            className={`lead-finder-tab ${activeTab === "osm" ? "active" : ""}`}
             onClick={() => setActiveTab("osm")}
           >
-            <Globe size={16} />
-            OpenStreetMap Lead Finder (Open Source)
+            <Search size={14} />
+            OpenStreetMap Live-Finder
           </button>
           <button
-            className={`tab-button ${activeTab === "manual" ? "active" : ""}`}
+            className={`lead-finder-tab ${activeTab === "manual" ? "active" : ""}`}
             onClick={() => setActiveTab("manual")}
           >
-            <Plus size={16} />
-            Manuell eintragen
+            <Plus size={14} />
+            Manuell anlegen
           </button>
         </div>
 
-        {activeTab === "osm" ? (
-          <div className="finder-body">
-            <div className="finder-form-grid">
-              <div className="finder-field">
-                <label className="field-label">Stadt / Region</label>
-                <div className="field-input-wrap">
-                  <MapPin size={16} className="field-icon" />
+        {/* Modal Body */}
+        <div className="lead-finder-body">
+          {activeTab === "osm" ? (
+            <div className="finder-osm-section">
+              {/* Filter Controls */}
+              <div className="finder-controls-grid">
+                <div className="finder-field">
+                  <label className="field-label">Stadt / Region (Weltweit)</label>
                   <input
                     type="text"
                     className="control"
-                    placeholder="z. B. Köln, Berlin, München..."
+                    placeholder="z. B. Köln, Berlin, London, Miami..."
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && void handleSearch()}
                   />
+                  <div className="city-chips">
+                    {POPULAR_CITIES.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        className={`city-chip ${city === c ? "active" : ""}`}
+                        onClick={() => setCity(c)}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="city-chips">
-                  {POPULAR_CITIES.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      className={`city-chip ${city === c ? "active" : ""}`}
-                      onClick={() => setCity(c)}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
-              <div className="finder-field">
-                <label className="field-label">Branche</label>
-                <select
-                  className="control"
-                  value={industry}
-                  onChange={(e) => setIndustry(e.target.value as IndustryPreset)}
-                >
-                  {Object.entries(INDUSTRY_CONFIG).map(([key, cfg]) => (
-                    <option key={key} value={key}>
-                      {cfg.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="finder-field">
-                <label className="field-label">Optional: Spezifischer Suchbegriff</label>
-                <input
-                  type="text"
-                  className="control"
-                  placeholder="z. B. Dachdecker, Pizzeria, Tierarzt..."
-                  value={customQuery}
-                  onChange={(e) => setCustomQuery(e.target.value)}
-                />
-              </div>
-
-              <div className="finder-field-inline">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={onlyWithoutWebsite}
-                    onChange={(e) => setOnlyWithoutWebsite(e.target.checked)}
-                  />
-                  <span>Nur Betriebe <strong>ohne Website</strong> suchen (High Potential)</span>
-                </label>
-
-                <div className="limit-selector">
-                  <span style={{ fontSize: 13, color: "#667085" }}>Anzahl:</span>
+                <div className="finder-field">
+                  <label className="field-label">Branche</label>
                   <select
-                    className="control compact"
-                    value={limit}
-                    onChange={(e) => setLimit(Number(e.target.value))}
+                    className="control"
+                    value={industry}
+                    onChange={(e) => setIndustry(e.target.value as IndustryPreset)}
                   >
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                    <option value={150}>150</option>
+                    {Object.entries(INDUSTRY_CONFIG).map(([key, cfg]) => (
+                      <option key={key} value={key}>
+                        {cfg.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
-              </div>
-            </div>
 
-            <div className="finder-action-row">
-              <button
-                className="button primary"
-                onClick={() => void handleSearch()}
-                disabled={searching || !city.trim()}
-              >
-                {searching ? (
-                  <Loader2 size={16} className="spin-icon" />
-                ) : (
-                  <Search size={16} />
-                )}
-                {searching ? "Suche auf OpenStreetMap…" : "Leads suchen"}
-              </button>
-            </div>
-
-            {searchError && (
-              <div className="finder-alert error">{searchError}</div>
-            )}
-
-            {importSuccess && (
-              <div className="finder-alert success">
-                <CheckCircle2 size={16} />
-                <span>{importSuccess}</span>
-              </div>
-            )}
-
-            {leads.length > 0 && (
-              <div className="finder-results-section">
-                <div className="results-header">
-                  <div className="results-count">
-                    <strong>{leads.length}</strong> Betriebe gefunden (
-                    {leads.filter((l) => !l.hasWebsite).length} ohne Website) ·{" "}
-                    <strong>{selectedIds.size}</strong> ausgewählt
-                  </div>
-                  <div className="results-actions">
-                    <button
-                      type="button"
-                      className="button secondary compact"
-                      onClick={toggleSelectAll}
-                    >
-                      {selectedIds.size === leads.length
-                        ? "Alle abwählen"
-                        : "Alle auswählen"}
-                    </button>
-                    <button
-                      type="button"
-                      className="button primary compact"
-                      disabled={selectedIds.size === 0 || importing}
-                      onClick={() => void handleImport()}
-                    >
-                      {importing ? (
-                        <Loader2 size={14} className="spin-icon" />
-                      ) : (
-                        <Plus size={14} />
-                      )}
-                      {importing
-                        ? "Importiere…"
-                        : `${selectedIds.size} in CRM importieren`}
-                    </button>
-                  </div>
+                <div className="finder-field">
+                  <label className="field-label">Optional: Spezifischer Suchbegriff</label>
+                  <input
+                    type="text"
+                    className="control"
+                    placeholder="z. B. Dachdecker, Pizzeria, Tierarzt..."
+                    value={customQuery}
+                    onChange={(e) => setCustomQuery(e.target.value)}
+                  />
                 </div>
 
-                <div className="results-list">
-                  {leads.map((lead) => {
-                    const isSelected = selectedIds.has(lead.id);
-                    return (
-                      <div
-                        key={lead.id}
-                        className={`lead-result-card ${isSelected ? "selected" : ""}`}
-                        onClick={() => toggleSelect(lead.id)}
+                <div className="finder-field-inline">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={onlyWithoutWebsite}
+                      onChange={(e) => setOnlyWithoutWebsite(e.target.checked)}
+                    />
+                    <span>
+                      Nur Betriebe <strong>ohne Website</strong> suchen (High Potential)
+                    </span>
+                  </label>
+
+                  <div className="limit-selector">
+                    <span style={{ fontSize: 13, color: "#667085" }}>Anzahl:</span>
+                    <select
+                      className="control compact"
+                      value={limit}
+                      onChange={(e) => setLimit(Number(e.target.value))}
+                    >
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value={150}>150</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="finder-action-row">
+                <button
+                  className="button primary"
+                  onClick={() => void handleSearch()}
+                  disabled={searching || !city.trim()}
+                >
+                  {searching ? (
+                    <Loader2 size={16} className="spin-icon" />
+                  ) : (
+                    <Search size={16} />
+                  )}
+                  {searching ? "Suche auf OpenStreetMap…" : "Leads suchen"}
+                </button>
+              </div>
+
+              {searchError && <div className="finder-alert error">{searchError}</div>}
+
+              {importSuccess && (
+                <div className="finder-alert success">
+                  <CheckCircle2 size={16} />
+                  <span>{importSuccess}</span>
+                </div>
+              )}
+
+              {leads.length > 0 && (
+                <div className="finder-results-section">
+                  <div className="results-header">
+                    <div className="results-count">
+                      <strong>{leads.length}</strong> Betriebe gefunden (
+                      {leads.filter((l) => !l.hasWebsite).length} ohne Website) ·{" "}
+                      <strong>{selectedIds.size}</strong> ausgewählt
+                    </div>
+                    <div className="results-actions">
+                      <button
+                        type="button"
+                        className="button secondary compact"
+                        onClick={toggleSelectAll}
                       >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelect(lead.id)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <div className="lead-info">
-                          <div className="lead-name-row">
-                            <strong>{lead.name}</strong>
-                            <span className="badge industry-badge">
-                              {lead.industry}
-                            </span>
-                            {lead.hasWebsite ? (
-                              <a
-                                href={lead.website}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="badge green website-link"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                Website <ExternalLink size={11} />
-                              </a>
-                            ) : (
-                              <span className="badge red">Keine Website</span>
-                            )}
-                          </div>
-                          <div className="lead-meta-row">
-                            {lead.address && (
-                              <span>
-                                <MapPin size={12} /> {lead.address}, {lead.city}
+                        {selectedIds.size === leads.length
+                          ? "Alle abwählen"
+                          : "Alle auswählen"}
+                      </button>
+                      <button
+                        type="button"
+                        className="button primary compact"
+                        disabled={selectedIds.size === 0 || importing}
+                        onClick={handleImportClick}
+                      >
+                        {importing ? (
+                          <Loader2 size={14} className="spin-icon" />
+                        ) : (
+                          <Plus size={14} />
+                        )}
+                        {importing
+                          ? "Importiere…"
+                          : `${selectedIds.size} in CRM importieren`}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="results-list">
+                    {leads.map((lead) => {
+                      const isSelected = selectedIds.has(lead.id);
+                      const existing = findExistingMatch(lead, existingCrmCompanies);
+                      const diffs = existing ? getLeadDifferences(lead, existing) : [];
+
+                      return (
+                        <div
+                          key={lead.id}
+                          className={`lead-result-card ${isSelected ? "selected" : ""}`}
+                          onClick={() => toggleSelect(lead.id)}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(lead.id)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="lead-info">
+                            <div className="lead-name-row">
+                              <strong>{lead.name}</strong>
+                              <span className="badge industry-badge">{lead.industry}</span>
+
+                              {/* CRM Status Badges */}
+                              {existing && diffs.length === 0 && (
+                                <span
+                                  className="badge"
+                                  style={{
+                                    background: "#f2f4f7",
+                                    color: "#475467",
+                                    fontSize: "0.72rem",
+                                  }}
+                                >
+                                  ✓ Bereits im CRM
+                                </span>
+                              )}
+                              {existing && diffs.length > 0 && (
+                                <span
+                                  className="badge"
+                                  style={{
+                                    background: "#fffaeb",
+                                    color: "#b54708",
+                                    border: "1px solid #fedf89",
+                                    fontSize: "0.72rem",
+                                  }}
+                                >
+                                  🔄 Neue Daten ({diffs.length})
+                                </span>
+                              )}
+
+                              {lead.hasWebsite ? (
+                                <a
+                                  href={lead.website}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="lead-website-link"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {lead.website?.replace(/^https?:\/\//, "")}{" "}
+                                  <ExternalLink size={11} />
+                                </a>
+                              ) : (
+                                <span className="badge no-web-badge">Keine Website</span>
+                              )}
+                            </div>
+
+                            <div className="lead-meta-row">
+                              <span className="lead-meta-item">
+                                <MapPin size={12} />
+                                {lead.address ? `${lead.address}, ` : ""}
+                                {lead.city}
                               </span>
-                            )}
-                            {lead.phone && (
-                              <span>
-                                <Phone size={12} /> {lead.phone}
-                              </span>
-                            )}
+                              {lead.phone && (
+                                <span className="lead-meta-item">
+                                  <Phone size={12} />
+                                  {lead.phone}
+                                </span>
+                              )}
+                              {lead.email && (
+                                <span className="lead-meta-item">✉️ {lead.email}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
 
-                <div style={{ display: "flex", justifyContent: "center", paddingTop: 8 }}>
-                  <button
-                    type="button"
-                    className="button secondary compact"
-                    onClick={() => void handleLoadMore()}
-                    disabled={loadingMore}
+                  {/* Load More Button */}
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      padding: "14px 0",
+                      borderTop: "1px solid #eaecf0",
+                      marginTop: 8,
+                    }}
                   >
-                    {loadingMore ? <Loader2 size={14} className="spin-icon" /> : <Plus size={14} />}
-                    {loadingMore ? "Lade weitere Betriebe…" : "Mehr Betriebe nachladen (+50)"}
-                  </button>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      onClick={() => void handleLoadMore()}
+                      disabled={loadingMore || searching}
+                    >
+                      {loadingMore ? (
+                        <Loader2 size={15} className="spin-icon" />
+                      ) : (
+                        <Plus size={15} />
+                      )}
+                      {loadingMore ? "Lade weitere Betriebe…" : "Mehr Betriebe nachladen (+50)"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <form className="finder-manual-form" onSubmit={handleManualSubmit}>
+              <div className="manual-grid">
+                <div className="manual-field">
+                  <label className="field-label">Unternehmensname *</label>
+                  <input
+                    type="text"
+                    className="control"
+                    placeholder="z. B. Malermeister Weber GmbH"
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="manual-field">
+                  <label className="field-label">Branche</label>
+                  <input
+                    type="text"
+                    className="control"
+                    placeholder="z. B. Handwerk, Zahnarzt, Restaurant"
+                    value={manualIndustry}
+                    onChange={(e) => setManualIndustry(e.target.value)}
+                  />
+                </div>
+
+                <div className="manual-field">
+                  <label className="field-label">Stadt / Ort *</label>
+                  <input
+                    type="text"
+                    className="control"
+                    placeholder="z. B. Köln"
+                    value={manualCity}
+                    onChange={(e) => setManualCity(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="manual-field">
+                  <label className="field-label">Adresse (Straße & Hausnummer)</label>
+                  <input
+                    type="text"
+                    className="control"
+                    placeholder="z. B. Hauptstraße 12"
+                    value={manualAddress}
+                    onChange={(e) => setManualAddress(e.target.value)}
+                  />
+                </div>
+
+                <div className="manual-field">
+                  <label className="field-label">Website (optional)</label>
+                  <input
+                    type="text"
+                    className="control"
+                    placeholder="https://example.com"
+                    value={manualWebsite}
+                    onChange={(e) => setManualWebsite(e.target.value)}
+                  />
+                </div>
+
+                <div className="manual-field">
+                  <label className="field-label">Telefonnummer</label>
+                  <input
+                    type="text"
+                    className="control"
+                    placeholder="+49 221 123456"
+                    value={manualPhone}
+                    onChange={(e) => setManualPhone(e.target.value)}
+                  />
+                </div>
+
+                <div className="manual-field span-2">
+                  <label className="field-label">E-Mail</label>
+                  <input
+                    type="email"
+                    className="control"
+                    placeholder="kontakt@unternehmen.de"
+                    value={manualEmail}
+                    onChange={(e) => setManualEmail(e.target.value)}
+                  />
                 </div>
               </div>
-            )}
-          </div>
-        ) : (
-          <form className="finder-body manual-form" onSubmit={handleManualSubmit}>
-            <div className="manual-grid">
-              <div className="finder-field">
-                <label className="field-label">Firmenname *</label>
-                <input
-                  type="text"
-                  required
-                  className="control"
-                  placeholder="z. B. Praxis Dr. Müller"
-                  value={manualName}
-                  onChange={(e) => setManualName(e.target.value)}
-                />
-              </div>
 
-              <div className="finder-field">
-                <label className="field-label">Branche</label>
-                <input
-                  type="text"
-                  className="control"
-                  placeholder="z. B. Zahnarzt, Physiotherapie..."
-                  value={manualIndustry}
-                  onChange={(e) => setManualIndustry(e.target.value)}
-                />
-              </div>
+              {manualError && <div className="finder-alert error">{manualError}</div>}
 
-              <div className="finder-field">
-                <label className="field-label">Stadt *</label>
-                <input
-                  type="text"
-                  required
-                  className="control"
-                  placeholder="z. B. München"
-                  value={manualCity}
-                  onChange={(e) => setManualCity(e.target.value)}
-                />
-              </div>
+              {importSuccess && (
+                <div className="finder-alert success">
+                  <CheckCircle2 size={16} />
+                  <span>{importSuccess}</span>
+                </div>
+              )}
 
-              <div className="finder-field">
-                <label className="field-label">Adresse (Straße & Nr.)</label>
-                <input
-                  type="text"
-                  className="control"
-                  placeholder="z. B. Leopoldstraße 45"
-                  value={manualAddress}
-                  onChange={(e) => setManualAddress(e.target.value)}
-                />
+              <div className="finder-action-row">
+                <button type="submit" className="button primary" disabled={importing}>
+                  {importing ? (
+                    <Loader2 size={16} className="spin-icon" />
+                  ) : (
+                    <Plus size={16} />
+                  )}
+                  {importing ? "Speichere…" : "Lead im CRM anlegen"}
+                </button>
               </div>
+            </form>
+          )}
+        </div>
 
-              <div className="finder-field">
-                <label className="field-label">Website (optional)</label>
-                <input
-                  type="text"
-                  className="control"
-                  placeholder="https://..."
-                  value={manualWebsite}
-                  onChange={(e) => setManualWebsite(e.target.value)}
-                />
+        {/* Footer */}
+        <div className="lead-finder-footer">
+          <button className="button secondary" onClick={onClose}>
+            Schließen
+          </button>
+        </div>
+      </div>
+
+      {/* Confirmation & Difference Dialog */}
+      {confirmModal && confirmModal.isOpen && (
+        <div
+          className="lead-finder-modal-overlay"
+          style={{ zIndex: 1100, background: "rgba(0, 0, 0, 0.65)" }}
+          onClick={() => setConfirmModal(null)}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: 520,
+              width: "90%",
+              background: "#ffffff",
+              padding: 24,
+              borderRadius: 14,
+              boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  background: "#fffaeb",
+                  color: "#b54708",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <RefreshCw size={20} />
               </div>
-
-              <div className="finder-field">
-                <label className="field-label">Telefon</label>
-                <input
-                  type="text"
-                  className="control"
-                  placeholder="+49 ..."
-                  value={manualPhone}
-                  onChange={(e) => setManualPhone(e.target.value)}
-                />
-              </div>
-
-              <div className="finder-field">
-                <label className="field-label">E-Mail</label>
-                <input
-                  type="email"
-                  className="control"
-                  placeholder="kontakt@..."
-                  value={manualEmail}
-                  onChange={(e) => setManualEmail(e.target.value)}
-                />
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700 }}>
+                  Bereits vorhandene Leads gefunden
+                </h3>
+                <p style={{ margin: 0, fontSize: "0.85rem", color: "#667085" }}>
+                  Einige ausgewählte Betriebe existieren bereits in deiner Datenbank.
+                </p>
               </div>
             </div>
 
-            {manualError && (
-              <div className="finder-alert error">{manualError}</div>
-            )}
+            <div
+              style={{
+                background: "#f8fafc",
+                border: "1px solid #eaecf0",
+                borderRadius: 10,
+                padding: "12px 16px",
+                fontSize: "0.88rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <div>
+                🌱 <strong>{confirmModal.newCount}</strong> neue Betriebe werden angelegt.
+              </div>
+              <div>
+                🏢 <strong>{confirmModal.existingCount}</strong> Betriebe sind bereits im CRM.
+              </div>
 
-            <div className="finder-action-row modal-footer">
+              {confirmModal.updatedItems.length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  <span style={{ fontWeight: 600, color: "#b54708" }}>
+                    🔄 Abweichende/neue Kontaktdaten gefunden ({confirmModal.updatedItems.length} Betriebe):
+                  </span>
+                  <div
+                    style={{
+                      maxHeight: 140,
+                      overflowY: "auto",
+                      marginTop: 6,
+                      fontSize: "0.8rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                    }}
+                  >
+                    {confirmModal.updatedItems.map(({ company, diffs }) => (
+                      <div
+                        key={company.id}
+                        style={{
+                          background: "#ffffff",
+                          padding: "6px 10px",
+                          borderRadius: 6,
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        <strong>{company.name}</strong>
+                        <ul style={{ margin: "2px 0 0 16px", padding: 0, color: "#475467" }}>
+                          {diffs.map((d) => (
+                            <li key={d}>{d}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#475467" }}>
+              Wie möchtest du mit den bereits vorhandenen Betrieben verfahren?
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
               <button
-                type="button"
+                className="button primary"
+                onClick={() => void executeImport(confirmModal.toImport, true)}
+              >
+                <RefreshCw size={14} />
+                Bestehende aktualisieren & Neue anlegen
+              </button>
+              <button
                 className="button secondary"
-                onClick={onClose}
+                onClick={() => void executeImport(confirmModal.toImport, false)}
+              >
+                <Plus size={14} />
+                Nur neue anlegen (Bestehende überspringen)
+              </button>
+              <button
+                className="button secondary"
+                onClick={() => setConfirmModal(null)}
+                style={{ color: "#667085" }}
               >
                 Abbrechen
               </button>
-              <button
-                type="submit"
-                className="button primary"
-                disabled={importing || !manualName.trim() || !manualCity.trim()}
-              >
-                {importing ? <Loader2 size={15} className="spin-icon" /> : <Plus size={15} />}
-                {importing ? "Speichern…" : "Unternehmen anlegen"}
-              </button>
             </div>
-          </form>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

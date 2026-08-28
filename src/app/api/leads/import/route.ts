@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { companies?: Company[] };
+  let body: { companies?: Company[]; updateExisting?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -29,6 +29,8 @@ export async function POST(request: Request) {
   }
 
   const companies = body.companies;
+  const updateExisting = body.updateExisting ?? true;
+
   if (!Array.isArray(companies) || !companies.length) {
     return NextResponse.json(
       { error: "No companies provided to import.", code: "NO_COMPANIES" },
@@ -37,106 +39,172 @@ export async function POST(request: Request) {
   }
 
   try {
-    const companyRows = companies.map((company) => ({
-      id: company.id,
-      name: company.name,
-      industry: company.industry,
-      address: company.address || "",
-      city: company.city || "",
-      country: company.country || "Deutschland",
-      phone: company.phone || "",
-      email: company.email || "",
-      website: company.website || null,
-      has_website: Boolean(company.hasWebsite),
-      google_rating: Number(company.googleRating || 0),
-      review_count: Number(company.reviewCount || 0),
-    }));
+    // 1. Fetch already existing company IDs in Supabase
+    const incomingIds = companies.map((c) => c.id);
+    const { data: existingRows } = await supabase
+      .from("companies")
+      .select("id, name, city, phone, email, website, address")
+      .in("id", incomingIds);
 
-    const auditRows = companies.map((company) => ({
-      company_id: company.id,
-      overall_score: company.scores.overall,
-      design_score: company.scores.design,
-      mobile_score: company.scores.mobile,
-      seo_score: company.scores.seo,
-      performance_score: company.scores.performance,
-      conversion_score: company.scores.conversion,
-      problems: company.problems || [],
-      strengths: company.strengths || [],
-      ai_summary: company.aiSummary || "",
-      opportunity: company.opportunity || "",
-      recommendation: company.recommendation || "",
-      suggested_structure: company.suggestedStructure || [],
-      sales_angle: company.salesAngle || "",
-      last_analyzed_at: company.lastAnalyzedAt || "",
-    }));
+    const existingMap = new Map((existingRows || []).map((r) => [r.id, r]));
 
-    const workflows = companies.map((c) => ({ company: c, wf: createDefaultWorkflow(c) }));
+    const toInsert: Company[] = [];
+    const toUpdate: Company[] = [];
+    let skippedCount = 0;
 
-    const leadRows = workflows.map(({ company, wf }) => ({
-      company_id: company.id,
-      status: company.status || "New",
-      potential: company.potential || (company.hasWebsite ? "Medium" : "Very High"),
-      lead_score: wf.leadScore,
-      priority: wf.priority,
-    }));
+    for (const company of companies) {
+      if (existingMap.has(company.id)) {
+        if (updateExisting) {
+          toUpdate.push(company);
+        } else {
+          skippedCount++;
+        }
+      } else {
+        toInsert.push(company);
+      }
+    }
 
-    const noteRows = workflows.map(({ company, wf }) => ({
-      company_id: company.id,
-      notes: wf.notes || "",
-    }));
+    // 2. Insert new companies with default workflows
+    if (toInsert.length > 0) {
+      const companyRows = toInsert.map((company) => ({
+        id: company.id,
+        name: company.name,
+        industry: company.industry,
+        address: company.address || "",
+        city: company.city || "",
+        country: company.country || "Deutschland",
+        phone: company.phone || "",
+        email: company.email || "",
+        website: company.website || null,
+        has_website: Boolean(company.hasWebsite),
+        google_rating: Number(company.googleRating || 0),
+        review_count: Number(company.reviewCount || 0),
+      }));
 
-    const mockupRows = workflows.map(({ company, wf }) => ({
-      company_id: company.id,
-      status: wf.mockupReady ? "ready" : "pending",
-      mockup_url: wf.mockupReady ? `/companies/${company.id}/mockup` : null,
-    }));
-
-    const outreachRows = workflows.map(({ company, wf }) => ({
-      company_id: company.id,
-      subject: wf.outreach.subject,
-      message: wf.outreach.message,
-      approved: wf.outreach.approved,
-      status: "draft",
-    }));
-
-    const activityRows = workflows.flatMap(({ company }) => [
-      {
-        id: `import-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      const auditRows = toInsert.map((company) => ({
         company_id: company.id,
-        type: "lead",
-        title: "Lead aus OpenStreetMap importiert",
-        detail: company.hasWebsite
-          ? `Website: ${company.website}`
-          : "Keine Website vorhanden (Hohes Potenzial)",
-        created_at: new Date().toISOString(),
-      },
-    ]);
+        overall_score: company.scores.overall,
+        design_score: company.scores.design,
+        mobile_score: company.scores.mobile,
+        seo_score: company.scores.seo,
+        performance_score: company.scores.performance,
+        conversion_score: company.scores.conversion,
+        problems: company.problems || [],
+        strengths: company.strengths || [],
+        ai_summary: company.aiSummary || "",
+        opportunity: company.opportunity || "",
+        recommendation: company.recommendation || "",
+        suggested_structure: company.suggestedStructure || [],
+        sales_angle: company.salesAngle || "",
+        last_analyzed_at: company.lastAnalyzedAt || "",
+      }));
 
-    // Upsert batch
-    const [cRes, aRes, lRes, nRes, mRes, oRes, actRes] = await Promise.all([
-      supabase.from("companies").upsert(companyRows, { onConflict: "id" }),
-      supabase.from("website_audits").upsert(auditRows, { onConflict: "company_id" }),
-      supabase.from("leads").upsert(leadRows, { onConflict: "company_id" }),
-      supabase.from("lead_notes").upsert(noteRows, { onConflict: "company_id" }),
-      supabase.from("mockups").upsert(mockupRows, { onConflict: "company_id" }),
-      supabase.from("outreach").upsert(outreachRows, { onConflict: "company_id" }),
-      supabase.from("lead_activities").upsert(activityRows, { onConflict: "id" }),
-    ]);
+      const workflows = toInsert.map((c) => ({ company: c, wf: createDefaultWorkflow(c) }));
 
-    const errors = [cRes.error, aRes.error, lRes.error, nRes.error, mRes.error, oRes.error, actRes.error].filter(Boolean);
-    if (errors.length) {
-      throw new Error(errors.map((e) => e?.message).join(" | "));
+      const leadRows = workflows.map(({ company, wf }) => ({
+        company_id: company.id,
+        status: company.status || "New",
+        potential: company.potential || (company.hasWebsite ? "Medium" : "Very High"),
+        lead_score: wf.leadScore,
+        priority: wf.priority,
+      }));
+
+      const noteRows = workflows.map(({ company, wf }) => ({
+        company_id: company.id,
+        notes: wf.notes || "",
+      }));
+
+      const mockupRows = workflows.map(({ company, wf }) => ({
+        company_id: company.id,
+        status: wf.mockupReady ? "ready" : "pending",
+        mockup_url: wf.mockupReady ? `/companies/${company.id}/mockup` : null,
+      }));
+
+      const outreachRows = workflows.map(({ company, wf }) => ({
+        company_id: company.id,
+        subject: wf.outreach.subject,
+        message: wf.outreach.message,
+        approved: wf.outreach.approved,
+        status: "draft",
+      }));
+
+      const activityRows = workflows.flatMap(({ company }) => [
+        {
+          id: `import-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          company_id: company.id,
+          type: "lead",
+          title: "Lead aus OpenStreetMap importiert",
+          detail: company.hasWebsite
+            ? `Website: ${company.website}`
+            : "Keine Website vorhanden (Hohes Potenzial)",
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      const [cRes, aRes, lRes, nRes, mRes, oRes, actRes] = await Promise.all([
+        supabase.from("companies").upsert(companyRows, { onConflict: "id" }),
+        supabase.from("website_audits").upsert(auditRows, { onConflict: "company_id" }),
+        supabase.from("leads").upsert(leadRows, { onConflict: "company_id" }),
+        supabase.from("lead_notes").upsert(noteRows, { onConflict: "company_id" }),
+        supabase.from("mockups").upsert(mockupRows, { onConflict: "company_id" }),
+        supabase.from("outreach").upsert(outreachRows, { onConflict: "company_id" }),
+        supabase.from("lead_activities").upsert(activityRows, { onConflict: "id" }),
+      ]);
+
+      const errors = [
+        cRes.error,
+        aRes.error,
+        lRes.error,
+        nRes.error,
+        mRes.error,
+        oRes.error,
+        actRes.error,
+      ].filter(Boolean);
+      if (errors.length) {
+        throw new Error(errors.map((e) => e?.message).join(" | "));
+      }
+    }
+
+    // 3. Update existing companies with fresh contact data without destroying their workflow
+    if (toUpdate.length > 0) {
+      const updatePromises = toUpdate.map(async (company) => {
+        const updatePayload: Record<string, unknown> = {
+          address: company.address || "",
+          city: company.city || "",
+          country: company.country || "Deutschland",
+        };
+        if (company.phone) updatePayload.phone = company.phone;
+        if (company.email) updatePayload.email = company.email;
+        if (company.website) {
+          updatePayload.website = company.website;
+          updatePayload.has_website = true;
+        }
+
+        await supabase.from("companies").update(updatePayload).eq("id", company.id);
+
+        // Add update activity log
+        await supabase.from("lead_activities").insert({
+          id: `update-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          company_id: company.id,
+          type: "lead",
+          title: "Kontaktdaten aktualisiert",
+          detail: `Daten aus OpenStreetMap aktualisiert (Tel: ${company.phone || "–"}, Web: ${company.website || "–"})`,
+          created_at: new Date().toISOString(),
+        });
+      });
+
+      await Promise.allSettled(updatePromises);
     }
 
     return NextResponse.json({
       ok: true,
-      importedCount: companies.length,
+      insertedCount: toInsert.length,
+      updatedCount: toUpdate.length,
+      skippedCount,
+      importedCount: toInsert.length + toUpdate.length,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Import to Supabase failed.";
-    return NextResponse.json(
-      { error: message, code: "IMPORT_FAILED" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: message, code: "IMPORT_FAILED" }, { status: 500 });
   }
 }
