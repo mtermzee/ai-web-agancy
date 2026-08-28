@@ -25,7 +25,7 @@ export const demoCompanies: Company[] = [
     recommendation: "Premium-Redesign mit schneller mobiler Terminführung, klaren Leistungsseiten, Team-Vertrauen und prominenter Termin-CTA.",
     suggestedStructure: ["Hero + Termin CTA", "Leistungen", "Warum Rheinblick Dental", "Ärzte-Team", "Bewertungen", "FAQ", "Kontakt & Terminbuchung"],
     salesAngle: "Die Praxis ist offline bereits stark. Das Angebot sollte zeigen, wie die Website dieses Vertrauen in mehr Terminanfragen übersetzen kann.",
-    mockupReady: true,
+    mockupReady: false,
   },
   {
     id: "physio-am-hafen",
@@ -50,7 +50,7 @@ export const demoCompanies: Company[] = [
     recommendation: "Neue lokale Praxiswebsite mit Leistungsübersicht, Team, FAQ, Standortsignalen und Termin-CTA.",
     suggestedStructure: ["Hero", "Behandlungen", "Therapeut:innen", "Ablauf", "Bewertungen", "FAQ", "Termin anfragen"],
     salesAngle: "Nicht mit Technik argumentieren, sondern mit mehr planbaren Anfragen und professionellem Erstkontakt.",
-    mockupReady: true,
+    mockupReady: false,
   },
   {
     id: "atelier-nova-hair",
@@ -128,7 +128,7 @@ export const demoCompanies: Company[] = [
     recommendation: "Seriöses Premium-Redesign mit Rechtsgebieten, Partnerprofilen, Falltypen und klarer Erstkontakt-Führung.",
     suggestedStructure: ["Positionierung", "Rechtsgebiete", "Anwält:innen", "Mandatsablauf", "Vertrauen", "FAQ", "Erstkontakt"],
     salesAngle: "Eine einzige zusätzliche qualifizierte Mandatsanfrage kann einen großen Teil des Relaunchs amortisieren.",
-    mockupReady: true,
+    mockupReady: false,
   },
   {
     id: "motorwerk-essen",
@@ -153,7 +153,7 @@ export const demoCompanies: Company[] = [
     recommendation: "Schnelle, mobile Werkstattseite mit Leistungen, Vertrauenssignalen und Termin-/Rückrufanfrage.",
     suggestedStructure: ["Hero", "Services", "Warum wir", "Bewertungen", "Fahrzeugannahme", "FAQ", "Termin"],
     salesAngle: "Kunden suchen ohnehin online; die Website soll die vorhandene Reputation abfangen und in Anfragen verwandeln.",
-    mockupReady: true,
+    mockupReady: false,
   },
   {
     id: "heimwert-immobilien",
@@ -231,7 +231,7 @@ export const demoCompanies: Company[] = [
     recommendation: "Mobile-first Relaunch mit Notdienst, Leistungsclustern, Projektbeispielen und Rückruf-CTA.",
     suggestedStructure: ["Hero + Notdienst", "Leistungen", "Projekte", "Bewertungen", "Gebiete", "FAQ", "Rückruf"],
     salesAngle: "Schneller erreichbar sein, wenn Kunden bereits mit konkretem Problem suchen.",
-    mockupReady: true,
+    mockupReady: false,
   },
   {
     id: "klarraum-reinigung",
@@ -308,7 +308,7 @@ export const demoCompanies: Company[] = [
     recommendation: "Strategischer Relaunch mit Branchenfokus, digitaler Zusammenarbeit und Karriereseiten.",
     suggestedStructure: ["Positionierung", "Mandanten", "Leistungen", "Digital arbeiten", "Team", "Karriere", "Erstgespräch"],
     salesAngle: "Relaunch an zwei Ziele knüpfen: bessere Mandanten und bessere Bewerber.",
-    mockupReady: true,
+    mockupReady: false,
   },
   {
     id: "bistro-lumina",
@@ -385,6 +385,6 @@ export const demoCompanies: Company[] = [
     recommendation: "Mehrsprachige Premium-Website mit Eigentümer-Akquise, Objektportfolio und Kontaktqualifizierung.",
     suggestedStructure: ["Hero", "Properties", "Sell with us", "Areas", "About", "Testimonials", "Contact"],
     salesAngle: "Unabhängigkeit von Portalen und hochwertiger internationaler Erstkontakt.",
-    mockupReady: true,
+    mockupReady: false,
   }
 ];

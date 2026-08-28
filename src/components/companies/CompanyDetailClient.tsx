@@ -53,13 +53,31 @@ export function CompanyDetailClient({ initialCompany }: { initialCompany: Compan
   const [editRating, setEditRating] = useState(company.googleRating || 0);
   const [editReviews, setEditReviews] = useState(company.reviewCount || 0);
 
-  const generateMockup = () => {
-    if (generating || company.mockupReady) return;
+  const generateMockup = async () => {
+    if (generating) return;
     setGenerating(true);
-    window.setTimeout(() => {
+    try {
+      const res = await fetch("/api/ai/generate-mockup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company }),
+      });
+      const data = await res.json();
+      if (data.ok && data.mockupContent && typeof window !== "undefined") {
+        window.localStorage.setItem(
+          `agencyos-mockup-${company.id}`,
+          JSON.stringify(data.mockupContent),
+        );
+      }
       markMockupReady(company.id);
+      router.push(`/companies/${company.id}/mockup`);
+    } catch (err) {
+      console.warn("Mockup generation failed, navigating to studio", err);
+      markMockupReady(company.id);
+      router.push(`/companies/${company.id}/mockup`);
+    } finally {
       setGenerating(false);
-    }, 850);
+    }
   };
 
   const handleDelete = async () => {

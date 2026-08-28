@@ -6,18 +6,8 @@ export type IndustryAssetPreset = {
   heroImage: string;
   aboutImage: string;
   serviceImages: string[];
-  defaultKicker: string;
-  defaultHeroTitle: string;
-  defaultHeroDesc: string;
-  defaultHeroCta: string;
   defaultServices: Array<{ title: string; description: string; tag?: string }>;
-  defaultAboutTitle: string;
-  defaultAboutText: string;
   defaultAboutPoints: string[];
-  defaultTestimonials: Array<{ quote: string; author: string; role: string; rating: number }>;
-  defaultCtaTitle: string;
-  defaultCtaText: string;
-  defaultCtaBtn: string;
 };
 
 export const THEME_CONFIG: Record<
@@ -86,9 +76,9 @@ export const THEME_CONFIG: Record<
 };
 
 export function getIndustryPreset(industry: string, city: string): IndustryAssetPreset {
-  const norm = industry.toLowerCase();
+  const norm = (industry || "").toLowerCase();
 
-  // 1. Dentist / Kieferorthopäde
+  // 1. Dentist
   if (norm.includes("zahn") || norm.includes("dentist") || norm.includes("kiefer")) {
     return {
       defaultTheme: "clean-blue",
@@ -101,11 +91,6 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
         "https://images.unsplash.com/photo-1598256989800-fe5f95da9787?auto=format&fit=crop&w=600&q=80",
         "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=600&q=80",
       ],
-      defaultKicker: `Zahnarztpraxis in ${city}`,
-      defaultHeroTitle: "Ihr Lächeln in besten Händen – schmerzfrei & modern.",
-      defaultHeroDesc:
-        "Persönliche Betreuung, modernste Behandlungsmethoden und eine entspannte Atmosphäre für Ihre ganze Familie. Jetzt unkompliziert Wunschtermin sichern.",
-      defaultHeroCta: "Online Termin vereinbaren",
       defaultServices: [
         {
           title: "Vorsorge & Prophylaxe",
@@ -114,47 +99,24 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
         },
         {
           title: "Ästhetische Zahnheilkunde",
-          description: "Schonende Zahnaufhellung (Bleaching), Veneers und unsichtbare Zahnschienen.",
+          description: "Schonendes Bleaching, Veneers und unsichtbare Korrekturschienen.",
           tag: "Ästhetik",
         },
         {
           title: "Implantologie & Zahnersatz",
-          description: "Hochwertige, passgenaue Implantate aus biokompatibler Keramik mit natürlichem Gefühl.",
+          description: "Hochwertige, passgenaue Implantate aus biokompatibler Keramik mit natürlichem Tragegefühl.",
           tag: "Spezialgebiet",
         },
       ],
-      defaultAboutTitle: `Ihre Wohlfühlpraxis in ${city}`,
-      defaultAboutText:
-        "Wir verbinden jahrelange Erfahrung mit modernster digitaler Diagnostik (3D-Röntgen, Intraoral-Scan ohne Würgereiz). Bei uns steht der Mensch im Mittelpunkt – von der einfühlsamen Beratung bis zur Nachsorge.",
       defaultAboutPoints: [
-        "Digitaler Scan statt unangenehmer Abdruckmasse",
+        "Digitaler 3D-Scan statt unangenehmer Abdruckmasse",
         "Einfühlsame Behandlung speziell für Angstpatienten",
         "Flexible Abend- und Samstags-Sprechstunden",
       ],
-      defaultTestimonials: [
-        {
-          quote:
-            "Endlich eine Praxis, bei der man keine Angst haben muss! Freundliches Team, keine Wartezeit und ein tolles Ergebnis.",
-          author: "Laura M.",
-          role: `Patientin aus ${city}`,
-          rating: 5,
-        },
-        {
-          quote:
-            "Die professionelle Zahnreinigung und Beratung waren erstklassig. Sehr moderne Ausstattung und transparente Kosten.",
-          author: "Markus S.",
-          role: "Patient",
-          rating: 5,
-        },
-      ],
-      defaultCtaTitle: "Bereit für ein gesundes, strahlendes Lächeln?",
-      defaultCtaText:
-        "Vereinbaren Sie Ihren Termin ganz einfach in unter 60 Sekunden online – ohne langes Telefonieren.",
-      defaultCtaBtn: "Jetzt 24/7 Termin buchen",
     };
   }
 
-  // 2. Friseur / Barbershop / Salon
+  // 2. Hairdresser / Salon
   if (norm.includes("friseur") || norm.includes("hair") || norm.includes("barber") || norm.includes("salon")) {
     return {
       defaultTheme: "dark-luxury",
@@ -167,11 +129,6 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
         "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=600&q=80",
         "https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=600&q=80",
       ],
-      defaultKicker: `Salon & Barber in ${city}`,
-      defaultHeroTitle: "Dein Look. Deine Ausstrahlung. Perfektion im Detail.",
-      defaultHeroDesc:
-        "Meisterhafte Haarschnitte, brillante Colorationen und erstklassiges Styling in entspannter Salon-Atmosphäre. Gönn dir deine Auszeit.",
-      defaultHeroCta: "Online Termin buchen",
       defaultServices: [
         {
           title: "Precision Haircut & Styling",
@@ -189,36 +146,15 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
           tag: "Barbershop",
         },
       ],
-      defaultAboutTitle: "Leidenschaft für Haare & Style",
-      defaultAboutText:
-        "Bei uns trifft handwerkliche Präzision auf die neuesten Trend-Techniken. Wir nehmen uns Zeit für deine Wünsche und verwenden ausschließlich hochwertige Pflegeprodukte.",
       defaultAboutPoints: [
         "Erfahrene Top-Stylisten & Meisterqualifikation",
         "Kostenlose Getränke & entspanntes Salon-Ambiente",
         "Exklusive Premium-Pflegeprodukte",
       ],
-      defaultTestimonials: [
-        {
-          quote:
-            "Der beste Haarschnitt, den ich je hatte! Super Beratung bei der Balayage-Farbe – absolut empfehlenswert.",
-          author: "Sophie K.",
-          role: "Stammkundin",
-          rating: 5,
-        },
-        {
-          quote: "Präziser Fade-Cut und erstklassige Bartpflege. Entspannte Atmosphäre und immer top pünktlich.",
-          author: "David B.",
-          role: `Kunde aus ${city}`,
-          rating: 5,
-        },
-      ],
-      defaultCtaTitle: "Sichere dir deinen Wunsch-Stylingtermin",
-      defaultCtaText: "Wähle deine Lieblingsbehandlung und deinen Wunsch-Stylisten direkt im Online-Kalender.",
-      defaultCtaBtn: "Freien Termin auswählen",
     };
   }
 
-  // 3. Restaurant / Café / Gastronomie
+  // 3. Restaurant / Gastro
   if (norm.includes("restaurant") || norm.includes("caf") || norm.includes("pizz") || norm.includes("gastro") || norm.includes("bar")) {
     return {
       defaultTheme: "craft-gold",
@@ -231,11 +167,6 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
         "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=600&q=80",
         "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=600&q=80",
       ],
-      defaultKicker: `Kulinarik & Gastfreundschaft in ${city}`,
-      defaultHeroTitle: "Frische Zutaten, echte Leidenschaft & unvergesslicher Geschmack.",
-      defaultHeroDesc:
-        "Genießen Sie handgemachte Spezialitäten, saisonale Highlights und erlesene Weine in gemütlicher Wohlfühl-Atmosphäre.",
-      defaultHeroCta: "Tisch online reservieren",
       defaultServices: [
         {
           title: "Saisonale Spezialitäten",
@@ -248,41 +179,20 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
           tag: "Weinkarte",
         },
         {
-          title: "Events & Feierlichkeiten",
-          description: "Der perfekte Rahmen für Geburtstage, Firmenfeiern und Hochzeiten bis zu 80 Personen.",
+          title: "Events & Feiern",
+          description: "Der perfekte Rahmen für Geburtstage, Firmenfeiern und Feierlichkeiten bis zu 80 Personen.",
           tag: "Private Dining",
         },
       ],
-      defaultAboutTitle: "Aus Liebe zur guten Küche",
-      defaultAboutText:
-        "Unser Küchenteam zaubert mit viel Hingabe traditionelle Rezepturen neu interpretiert auf den Teller. Bei uns schmecken Sie die Sorgfalt bei jeder Zutat.",
       defaultAboutPoints: [
         "100% frische Zubereitung ohne Fertigprodukte",
         "Gemütlicher Außenbereich & sonnige Terrasse",
         "Vegetarische & vegane Gaumenfreuden",
       ],
-      defaultTestimonials: [
-        {
-          quote:
-            "Hervorragendes Essen, aufmerksamer Service und ein tolles Ambiente. Ein absoluter Geheimtipp!",
-          author: "Christian W.",
-          role: `Gast aus ${city}`,
-          rating: 5,
-        },
-        {
-          quote: "Wir haben unsere Firmenfeier hier veranstaltet. Alles hat perfekt geklappt – vielen Dank!",
-          author: "Elena R.",
-          role: "Event-Gast",
-          rating: 5,
-        },
-      ],
-      defaultCtaTitle: "Lust auf einen genussvollen Abend?",
-      defaultCtaText: "Reservieren Sie Ihren Tisch bequem online mit sofortiger Bestätigung.",
-      defaultCtaBtn: "Jetzt Tisch reservieren",
     };
   }
 
-  // 4. Handwerk / Bau / Schreiner / Elektro / Sanitär
+  // 4. Handwerk & Bau
   if (norm.includes("handwerk") || norm.includes("craft") || norm.includes("schrein") || norm.includes("elektro") || norm.includes("bau") || norm.includes("plumb")) {
     return {
       defaultTheme: "craft-gold",
@@ -295,11 +205,6 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
         "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80",
         "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&q=80",
       ],
-      defaultKicker: `Meisterbetrieb für ${city} & Umgebung`,
-      defaultHeroTitle: "Zuverlässige Handwerksqualität – sauber, pünktlich & meisterhaft.",
-      defaultHeroDesc:
-        "Von der persönlichen Fachberatung bis zur termingerechten Umsetzung: Wir realisieren Ihre Projekte mit höchster Präzision und fairen Festpreisen.",
-      defaultHeroCta: "Kostenloses Angebot anfragen",
       defaultServices: [
         {
           title: "Planung & Fachberatung",
@@ -307,7 +212,7 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
           tag: "Persönlich",
         },
         {
-          title: "Präzise Ausführung",
+          title: "Meisterhafte Ausführung",
           description: "Saubere Handwerksarbeit durch erfahrene Gesellen und modernstes Equipment.",
           tag: "Meisterqualität",
         },
@@ -317,36 +222,15 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
           tag: "Service",
         },
       ],
-      defaultAboutTitle: "Qualität, auf die Sie bauen können",
-      defaultAboutText:
-        "Als regionaler Handwerks-Meisterbetrieb legen wir großen Wert auf langlebige Materialien, Termintreue und transparente Absprachen ohne versteckte Kosten.",
       defaultAboutPoints: [
         "Transparente Festpreis-Garantie ohne Überraschungen",
         "Erfahrene Meister und qualifizierte Fachkräfte",
         "Saubere Baustellen und pünktliche Fertigstellung",
       ],
-      defaultTestimonials: [
-        {
-          quote:
-            "Pünktlich, sauber und extrem professionell ausgeführt. So wünscht man sich Handwerker heute!",
-          author: "Thomas M.",
-          role: `Hausbesitzer in ${city}`,
-          rating: 5,
-        },
-        {
-          quote: "Von der ersten Beratung bis zur Abnahme alles top. Klare Weiterempfehlung!",
-          author: "Sabine H.",
-          role: "Kundin",
-          rating: 5,
-        },
-      ],
-      defaultCtaTitle: "Haben Sie ein konkretes Projekt im Kopf?",
-      defaultCtaText: "Beschreiben Sie kurz Ihr Vorhaben und erhalten Sie innerhalb von 24h ein unverbindliches Angebot.",
-      defaultCtaBtn: "Projekt jetzt unverbindlich anfragen",
     };
   }
 
-  // 5. Autowerkstatt / Kfz
+  // 5. Autowerkstatt
   if (norm.includes("auto") || norm.includes("kfz") || norm.includes("mechanic") || norm.includes("repair") || norm.includes("werkstatt")) {
     return {
       defaultTheme: "dark-luxury",
@@ -359,58 +243,32 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
         "https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?auto=format&fit=crop&w=600&q=80",
         "https://images.unsplash.com/photo-1625047509168-a7026f36de04?auto=format&fit=crop&w=600&q=80",
       ],
-      defaultKicker: `Kfz-Meisterwerkstatt in ${city}`,
-      defaultHeroTitle: "Ihr Fahrzeug in Profi-Händen – schnell, fair & meisterhaft.",
-      defaultHeroDesc:
-        "Inspektion nach Herstellervorgaben, HU/AU, Bremsenservice und Elektronik-Diagnose für alle Marken mit voller Herstellergarantie.",
-      defaultHeroCta: "Werkstatt-Termin anfragen",
       defaultServices: [
         {
           title: "HU / AU Hauptuntersuchung",
-          description: "Täglich TÜV/DEKRA Prüfungen im Haus inklusive Vorab-Check.",
+          description: "Täglich TÜV/DEKRA Prüfungen im Haus inklusive gründlichem Vorab-Check.",
           tag: "TÜV-Prüfung",
         },
         {
-          title: "Inspektion & Wartung",
-          description: "Nach Herstellervorgaben mit Erhalt der vollen Werksgarantie und digitalem Serviceheft.",
+          title: "Inspektion nach Herstellervorgabe",
+          description: "Mit vollem Erhalt der Werksgarantie und Eintrag ins digitale Serviceheft.",
           tag: "Alle Marken",
         },
         {
-          title: "Bremsen & Fahrwerk",
-          description: "Präzise Diagnose, Marken-Ersatzteile in Erstausrüsterqualität und Festpreis.",
+          title: "Bremsen & Elektronik-Diagnose",
+          description: "Modernste Computer-Diagnose und Marken-Ersatzteile in Erstausrüsterqualität.",
           tag: "Sicherheit",
         },
       ],
-      defaultAboutTitle: "Transparenz & Meisterkompetenz",
-      defaultAboutText:
-        "Wir reparieren nur, was wirklich nötig ist, und sprechen jeden Arbeitsschritt vorab mit Ihnen ab. Modernste Diagnosegeräte garantieren schnelle Fehlersuche.",
       defaultAboutPoints: [
         "Kostenloser Ersatzwagen während der Reparatur",
         "Transparenter Kostenvoranschlag vor Reparaturbeginn",
-        "24 Monate Garantie auf Original-Markenersatzteile",
+        "24 Monate Garantie auf alle Markenersatzteile",
       ],
-      defaultTestimonials: [
-        {
-          quote:
-            "Super schneller Service bei der Inspektion. Sehr freundlich und viel günstiger als die Vertragswerkstatt!",
-          author: "Michael T.",
-          role: `Autofahrer aus ${city}`,
-          rating: 5,
-        },
-        {
-          quote: "Fahrzeug morgens abgegeben, nachmittags fertig mit TÜV. Perfekter Ablauf!",
-          author: "Sandra P.",
-          role: "Kundin",
-          rating: 5,
-        },
-      ],
-      defaultCtaTitle: "Wann steht Ihr nächster Werkstatt-Check an?",
-      defaultCtaText: "Wählen Sie Ihren Wunschtermin online oder rufen Sie uns direkt an.",
-      defaultCtaBtn: "Online Werkstatt-Termin buchen",
     };
   }
 
-  // 6. Kanzlei / Anwalt / Steuerberater
+  // 6. Kanzlei / Anwalt
   if (norm.includes("kanzlei") || norm.includes("anwalt") || norm.includes("law") || norm.includes("steuer") || norm.includes("notar")) {
     return {
       defaultTheme: "clean-blue",
@@ -423,11 +281,6 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
         "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80",
         "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=600&q=80",
       ],
-      defaultKicker: `Kanzlei für Recht & Beratung in ${city}`,
-      defaultHeroTitle: "Kompetente Rechtsberatung – durchsetzungsstark & persönlich.",
-      defaultHeroDesc:
-        "Wir vertreten Ihre rechtlichen und wirtschaftlichen Interessen mit höchster fachlicher Expertise, strategischem Weitblick und absoluter Diskretion.",
-      defaultHeroCta: "Vertrauliche Erstberatung anfragen",
       defaultServices: [
         {
           title: "Strategische Rechtsberatung",
@@ -445,36 +298,15 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
           tag: "Rechtssicher",
         },
       ],
-      defaultAboutTitle: "Ihr verlässlicher Rechtsbeistand",
-      defaultAboutText:
-        "Wir verstehen uns als moderne Kanzlei, die komplexe juristische Sachverhalte verständlich auf den Punkt bringt und pragmatische, wirtschaftlich sinnvolle Lösungen findet.",
       defaultAboutPoints: [
         "Schnelle Ersteinschätzung innerhalb von 24 Stunden",
         "Transparente Honorarstruktur ohne versteckte Gebühren",
         "Digitale Aktenführung & persönliche Betreuung",
       ],
-      defaultTestimonials: [
-        {
-          quote:
-            "Sehr kompetente und zielorientierte Beratung. Herr Rechtsanwalt hat meinen Fall hervorragend gelöst.",
-          author: "Dr. Andreas K.",
-          role: `Mandant aus ${city}`,
-          rating: 5,
-        },
-        {
-          quote: "Hervorragende Unterstützung bei Vertragsverhandlungen. Absolut empfehlenswert!",
-          author: "Monika W.",
-          role: "Unternehmerin",
-          rating: 5,
-        },
-      ],
-      defaultCtaTitle: "Haben Sie ein rechtliches Anliegen?",
-      defaultCtaText: "Kontaktieren Sie uns für eine unverbindliche und diskrete Ersteinschätzung.",
-      defaultCtaBtn: "Erstberatungs-Termin vereinbaren",
     };
   }
 
-  // 7. General Business / Fallback
+  // Fallback / General
   return {
     defaultTheme: "clean-blue",
     heroImage:
@@ -486,11 +318,6 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
       "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=600&q=80",
       "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80",
     ],
-    defaultKicker: `Ihr Partner in ${city}`,
-    defaultHeroTitle: "Professionelle Qualität, persönlicher Service & maßgeschneiderte Lösungen.",
-    defaultHeroDesc:
-      "Wir sind Ihr verlässlicher Ansprechpartner vor Ort. Entdecken Sie erstklassige Leistungen, transparente Abläufe und echte Kundenorientierung.",
-    defaultHeroCta: "Jetzt unverbindlich anfragen",
     defaultServices: [
       {
         title: "Individuelle Beratung",
@@ -508,59 +335,55 @@ export function getIndustryPreset(industry: string, city: string): IndustryAsset
         tag: "Service",
       },
     ],
-    defaultAboutTitle: `Über uns in ${city}`,
-    defaultAboutText:
-      "Mit Leidenschaft und Fachkompetenz setzen wir uns tagtäglich für die Zufriedenheit unserer Kunden ein. Lernen Sie uns kennen!",
     defaultAboutPoints: [
       "Persönliche Beratung auf Augenhöhe",
       "Zuverlässige und transparente Preisgestaltung",
       "Langjährige Erfahrung und regionales Vertrauen",
     ],
-    defaultTestimonials: [
-      {
-        quote: "Zuverlässiger Partner mit hervorragendem Service. Jederzeit gerne wieder!",
-        author: "Klaus B.",
-        role: `Kunde aus ${city}`,
-        rating: 5,
-      },
-      {
-        quote: "Sehr gute Kommunikation und erstklassige Qualität. Absolut zufrieden!",
-        author: "Petra N.",
-        role: "Kundin",
-        rating: 5,
-      },
-    ],
-    defaultCtaTitle: "Starten Sie jetzt mit uns durch",
-    defaultCtaText: "Nehmen Sie Kontakt auf und wir melden uns schnellstmöglich bei Ihnen.",
-    defaultCtaBtn: "Jetzt Kontakt aufnehmen",
   };
 }
 
 export function generateDefaultMockupContent(company: Company): MockupContent {
   const preset = getIndustryPreset(company.industry, company.city);
+  const name = company.name || "Ihr Betrieb";
+  const city = company.city || "Ihrer Region";
+  const industry = company.industry || "Dienstleistungen";
 
   return {
     theme: preset.defaultTheme,
-    heroKicker: `${company.name} · ${company.industry} in ${company.city}`,
-    heroTitle: preset.defaultHeroTitle,
-    heroDescription: preset.defaultHeroDesc,
-    heroCta: preset.defaultHeroCta,
+    heroKicker: `${name} · ${industry} in ${city}`,
+    heroTitle: `${name} – Qualität, Vertrauen & erstklassiger Service in ${city}.`,
+    heroDescription: `${name} ist Ihr verlässlicher Partner in ${city}. Wir bieten Ihnen maßgeschneiderte Lösungen, persönliche Beratung und termingerechte Ausführung.`,
+    heroCta: "Online Termin / Angebot anfragen",
     heroSecondaryCta: "Leistungen entdecken",
     heroImage: preset.heroImage,
-    servicesTitle: "Unsere Kernleistungen",
-    servicesSubtitle: `Maßgeschneiderte Lösungen von ${company.name} in ${company.city}`,
+    servicesTitle: "Unsere Leistungen im Überblick",
+    servicesSubtitle: `Professionelle Angebote von ${name} für Privat- und Gewerbekunden in ${city}`,
     services: preset.defaultServices.map((s, idx) => ({
       ...s,
       image: preset.serviceImages[idx] || preset.serviceImages[0],
     })),
-    aboutTitle: preset.defaultAboutTitle,
-    aboutText: preset.defaultAboutText,
+    aboutTitle: `Über ${name} in ${city}`,
+    aboutText: `Als inhabergeführter Fachbetrieb legen wir bei ${name} größten Wert auf Kundenzufriedenheit, transparente Preise und meisterhafte Ausführung. Mit langjähriger Erfahrung sind wir Ihr Ansprechpartner in ${city} und Umgebung.`,
     aboutImage: preset.aboutImage,
     aboutPoints: preset.defaultAboutPoints,
-    testimonialsTitle: "Was unsere Kunden über uns sagen",
-    testimonials: preset.defaultTestimonials,
-    ctaTitle: preset.defaultCtaTitle,
-    ctaText: preset.defaultCtaText,
-    ctaButton: preset.defaultCtaBtn,
+    testimonialsTitle: `Was Kunden über ${name} sagen`,
+    testimonials: [
+      {
+        quote: `Absolut empfehlenswert! Das Team von ${name} arbeitet extrem zuverlässig, freundlich und pünktlich.`,
+        author: "Markus B.",
+        role: `Kunde aus ${city}`,
+        rating: 5,
+      },
+      {
+        quote: `Hervorragende Qualität und transparente Preise bei ${name}. Wir kommen jederzeit gerne wieder!`,
+        author: "Sandra K.",
+        role: "Kundin",
+        rating: 5,
+      },
+    ],
+    ctaTitle: `Bereit für Ihr Projekt mit ${name}?`,
+    ctaText: `Kontaktieren Sie ${name} jetzt direkt telefonisch unter ${company.phone || "unserer Rufnummer"} oder senden Sie uns Ihre Anfrage online.`,
+    ctaButton: "Jetzt unverbindlich anfragen",
   };
 }

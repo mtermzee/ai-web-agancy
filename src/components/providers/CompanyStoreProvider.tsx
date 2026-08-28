@@ -15,6 +15,7 @@ import {
   deleteDemoCompanies,
   isSupabaseConfigured,
   loadAgencyState,
+  resetMockupStatus,
   resetSupabaseDemoData,
   saveWorkflowState,
   seedSupabaseDemoData,
@@ -45,6 +46,7 @@ type CompanyStore = {
   setOutreachApproved: (id: string, approved: boolean) => void;
   sendToReview: (id: string) => void;
   markMockupReady: (id: string) => void;
+  removeMockup: (id: string) => Promise<void>;
   updateCompany: (id: string, updates: Partial<Company>) => Promise<void>;
   deleteCompany: (id: string) => Promise<void>;
   deleteDemoData: () => Promise<void>;
@@ -358,6 +360,37 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
     [updateState],
   );
 
+  const removeMockup = useCallback(
+    async (id: string) => {
+      updateState(id, (current) => {
+        return {
+          ...current,
+          mockupReady: false,
+          status: current.status === "Mockup Ready" ? "New" : current.status,
+          activities: [
+            {
+              id: activityId("mockup"),
+              type: "mockup",
+              title: "Mockup entfernt",
+              detail: "Website-Konzept wurde zurückgesetzt.",
+              createdAt: new Date().toISOString(),
+            },
+            ...current.activities,
+          ],
+        };
+      });
+
+      if (dataSource === "supabase") {
+        try {
+          await resetMockupStatus(id);
+        } catch (error) {
+          setSyncError(error instanceof Error ? error.message : "Reset mockup failed.");
+        }
+      }
+    },
+    [updateState, dataSource],
+  );
+
   const deleteCompany = useCallback(
     async (id: string) => {
       setBaseCompanies((prev) => prev.filter((c) => c.id !== id));
@@ -477,6 +510,7 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
       setOutreachApproved,
       sendToReview,
       markMockupReady,
+      removeMockup,
       updateCompany,
       deleteCompany,
       deleteDemoData,
@@ -501,6 +535,7 @@ export function CompanyStoreProvider({ children }: { children: React.ReactNode }
       setOutreachApproved,
       sendToReview,
       markMockupReady,
+      removeMockup,
       updateCompany,
       deleteCompany,
       deleteDemoData,

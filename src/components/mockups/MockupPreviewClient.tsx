@@ -48,12 +48,33 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
   const [copiedLink, setCopiedLink] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Initialize theme from default preset
+  // Initialize theme and content from localStorage or default preset
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem(`agencyos-mockup-${company.id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved) as MockupContent;
+          setContent(parsed);
+          if (parsed.theme) setTheme(parsed.theme);
+          return;
+        } catch {
+          // fallback
+        }
+      }
+    }
     const defaultContent = generateDefaultMockupContent(company);
     setContent(defaultContent);
     setTheme(defaultContent.theme);
   }, [company]);
+
+  // Save changes to localStorage
+  const updateAndSaveContent = (next: MockupContent) => {
+    setContent(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(`agencyos-mockup-${company.id}`, JSON.stringify(next));
+    }
+  };
 
   const currentTheme = THEME_CONFIG[theme] || THEME_CONFIG["clean-blue"];
 
@@ -70,7 +91,7 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
 
       const data = await res.json();
       if (data.ok && data.mockupContent) {
-        setContent(data.mockupContent);
+        updateAndSaveContent(data.mockupContent);
         if (data.mockupContent.theme) {
           setTheme(data.mockupContent.theme);
         }

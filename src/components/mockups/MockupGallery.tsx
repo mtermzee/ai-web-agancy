@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, Globe2, LayoutTemplate, Sparkles } from "lucide-react";
+import { ExternalLink, Globe2, LayoutTemplate, Sparkles, Trash2 } from "lucide-react";
 import { PotentialBadge } from "@/components/ui/Badge";
 import { useCompanyStore } from "@/components/providers/CompanyStoreProvider";
 import { getIndustryPreset } from "@/lib/mockups/mockupAssets";
 
 export function MockupGallery() {
-  const { companies } = useCompanyStore();
+  const { companies, removeMockup } = useCompanyStore();
   const ready = companies.filter((company) => company.mockupReady);
 
   return (
@@ -71,14 +71,40 @@ export function MockupGallery() {
                   {company.industry} · {company.city}
                 </p>
               </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 4 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  marginTop: 4,
+                }}
+              >
                 <PotentialBadge potential={company.potential} />
-                <Link
-                  className="button primary compact"
-                  href={`/companies/${company.id}/mockup`}
-                >
-                  <ExternalLink size={14} /> Mockup Studio
-                </Link>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <button
+                    className="button secondary compact icon-only"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `Möchtest du das Mockup für „${company.name}“ aus der Galerie entfernen?`,
+                        )
+                      ) {
+                        void removeMockup(company.id);
+                      }
+                    }}
+                    title="Mockup entfernen"
+                    style={{ color: "#d92d20", padding: "6px 8px" }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                  <Link
+                    className="button primary compact"
+                    href={`/companies/${company.id}/mockup`}
+                  >
+                    <ExternalLink size={14} /> Mockup Studio
+                  </Link>
+                </div>
               </div>
             </div>
           </article>

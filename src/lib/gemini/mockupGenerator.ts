@@ -17,6 +17,89 @@ export function isGeminiConfiguredForMockup(): boolean {
   return Boolean(getApiKey());
 }
 
+const mockupResponseSchema = {
+  type: "OBJECT",
+  properties: {
+    heroKicker: { type: "STRING" },
+    heroTitle: { type: "STRING" },
+    heroDescription: { type: "STRING" },
+    heroCta: { type: "STRING" },
+    heroSecondaryCta: { type: "STRING" },
+    servicesTitle: { type: "STRING" },
+    servicesSubtitle: { type: "STRING" },
+    services: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          title: { type: "STRING" },
+          description: { type: "STRING" },
+          tag: { type: "STRING" },
+        },
+        required: ["title", "description", "tag"],
+      },
+    },
+    aboutTitle: { type: "STRING" },
+    aboutText: { type: "STRING" },
+    aboutPoints: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+    },
+    testimonialsTitle: { type: "STRING" },
+    testimonials: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          quote: { type: "STRING" },
+          author: { type: "STRING" },
+          role: { type: "STRING" },
+          rating: { type: "NUMBER" },
+        },
+        required: ["quote", "author", "role", "rating"],
+      },
+    },
+    ctaTitle: { type: "STRING" },
+    ctaText: { type: "STRING" },
+    ctaButton: { type: "STRING" },
+  },
+  required: [
+    "heroKicker",
+    "heroTitle",
+    "heroDescription",
+    "heroCta",
+    "heroSecondaryCta",
+    "servicesTitle",
+    "servicesSubtitle",
+    "services",
+    "aboutTitle",
+    "aboutText",
+    "aboutPoints",
+    "testimonialsTitle",
+    "testimonials",
+    "ctaTitle",
+    "ctaText",
+    "ctaButton",
+  ],
+};
+
+function extractJsonString(raw: string): string {
+  let cleaned = raw.trim();
+  if (cleaned.startsWith("```json")) {
+    cleaned = cleaned.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+  } else if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+  }
+
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+  }
+
+  return cleaned;
+}
+
 export async function generateMockupWithGemini(company: Company): Promise<MockupContent> {
   const apiKey = getApiKey();
   const fallback = generateDefaultMockupContent(company);
@@ -28,7 +111,7 @@ export async function generateMockupWithGemini(company: Company): Promise<Mockup
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const model = "gemini-2.5-flash";
+    const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
 
     const prompt = `Du bist ein hochbezahlter Senior Conversion-Copywriter für lokale Premium-Websites.
 Erstelle für das folgende lokale Unternehmen ein verkaufsstarkes, vertrauenerweckendes Website-Konzept auf Deutsch (oder in der jeweiligen Landessprache des Unternehmens).
@@ -69,13 +152,21 @@ Antworte ausschließlich im validen JSON-Format.`;
       contents: prompt,
       config: {
         responseMimeType: "application/json",
+        responseSchema: mockupResponseSchema,
       },
     });
 
     const text = response.text?.trim();
     if (!text) return fallback;
 
-    const parsed = JSON.parse(text) as Partial<MockupContent>;
+    let parsed: Partial<MockupContent>;
+    try {
+      const cleanJson = extractJsonString(text);
+      parsed = JSON.parse(cleanJson) as Partial<MockupContent>;
+    } catch (parseErr) {
+      console.warn("[Gemini Mockup Generation] JSON parse failed, using fallback:", parseErr);
+      return fallback;
+    }
 
     return {
       theme: preset.defaultTheme,

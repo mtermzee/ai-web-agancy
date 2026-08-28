@@ -352,6 +352,15 @@ export async function deleteAllCompanies() {
   throwIfError(res.error, "Delete all companies");
 }
 
+export async function resetMockupStatus(companyId: string) {
+  const supabase = createClient();
+  const res = await supabase
+    .from("mockups")
+    .update({ status: "pending", mockup_url: null })
+    .eq("company_id", companyId);
+  throwIfError(res.error, "Reset mockup status");
+}
+
 export async function resetSupabaseDemoData(companies: Company[]) {
   const supabase = createClient();
   // Deleting companies cascades into all workflow tables, then the immutable

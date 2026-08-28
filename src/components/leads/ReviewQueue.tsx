@@ -29,8 +29,20 @@ export function ReviewQueue() {
           <div className="review-card-top"><div className="company-logo large">{company.name.split(" ").map((part) => part[0]).slice(0,2).join("")}</div><div className="review-title"><strong>{company.name}</strong><span>{company.industry} · {company.city}</span></div><ScoreChip score={company.scores.overall}/></div>
           <div className="badge-row"><StatusBadge status={company.status}/><PotentialBadge potential={company.potential}/>{workflow && <span className={`priority-pill priority-${workflow.priority.toLowerCase()}`}>{workflow.priority} · {workflow.leadScore}</span>}</div>
           <p>{company.opportunity}</p>
-          <div className="review-signals"><span>★ {company.googleRating} ({company.reviewCount})</span><span>{company.hasWebsite ? "Website detected" : "No website"}</span><span>{company.mockupReady ? "Mockup ready" : "Mockup pending"}</span>{workflow?.notes && <span>Notes added</span>}</div>
-          <div className="review-actions"><Link className="button secondary" href={`/companies/${company.id}`}><Eye size={15}/>Review</Link>{!company.mockupReady && <button className="button secondary" onClick={() => markMockupReady(company.id)}><LayoutTemplate size={15}/>Create mockup</button>}<button className="icon-action approve" title="Qualify lead" onClick={() => updateStatus(company.id, "Qualified")}><CheckCircle2 size={17}/></button><button className="icon-action reject" title="Reject lead" onClick={() => updateStatus(company.id, "Rejected")}><XCircle size={17}/></button></div>
+          <div className="review-actions">
+            <Link className="button secondary" href={`/companies/${company.id}`}>
+              <Eye size={15} />Review
+            </Link>
+            <Link className="button secondary" href={`/companies/${company.id}/mockup`}>
+              <LayoutTemplate size={15} />{company.mockupReady ? "Mockup Studio" : "Mockup erstellen"}
+            </Link>
+            <button className="icon-action approve" title="Qualify lead" onClick={() => updateStatus(company.id, "Qualified")}>
+              <CheckCircle2 size={17} />
+            </button>
+            <button className="icon-action reject" title="Reject lead" onClick={() => updateStatus(company.id, "Rejected")}>
+              <XCircle size={17} />
+            </button>
+          </div>
         </article>;
       })}
       {!reviewCompanies.length && <div className="card empty-state review-empty">Review queue is empty. Change a company status to “Needs Review” to add it here.</div>}
