@@ -73,6 +73,36 @@ export const THEME_CONFIG: Record<
     mutedText: "#9a3412",
     border: "#fed7aa",
   },
+  "royal-purple": {
+    name: "Royal Velvet & Tech",
+    primary: "#7c3aed",
+    accent: "#a78bfa",
+    bg: "#f5f3ff",
+    cardBg: "#ffffff",
+    text: "#2e1065",
+    mutedText: "#6d28d9",
+    border: "#ddd6fe",
+  },
+  "rose-luxury": {
+    name: "Rose Quartz & Beauty",
+    primary: "#e11d48",
+    accent: "#fb7185",
+    bg: "#fff1f2",
+    cardBg: "#ffffff",
+    text: "#4c0519",
+    mutedText: "#9f1239",
+    border: "#fecdd3",
+  },
+  "slate-minimal": {
+    name: "Architect Slate Minimal",
+    primary: "#334155",
+    accent: "#64748b",
+    bg: "#f8fafc",
+    cardBg: "#ffffff",
+    text: "#0f172a",
+    mutedText: "#475569",
+    border: "#cbd5e1",
+  },
 };
 
 export function getIndustryPreset(industry: string, city: string): IndustryAssetPreset {
@@ -378,7 +408,237 @@ export const STYLE_CONFIG: Record<
   },
 };
 
+export type IndustryGalleryPack = {
+  id: string;
+  name: string;
+  category: string;
+  icon: string;
+  recommendedTheme: MockupTheme;
+  hero: string;
+  about: string;
+  services: [string, string, string];
+  gallery: string[];
+};
+
+export const INDUSTRY_GALLERY_PACKS: IndustryGalleryPack[] = [
+  {
+    id: "dentist",
+    name: "Zahnarzt & Kieferorthopädie",
+    category: "Gesundheit",
+    icon: "🦷",
+    recommendedTheme: "clean-blue",
+    hero: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80",
+    about: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=800&q=80",
+    services: [
+      "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1598256989800-fe5f95da9787?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=600&q=80",
+    ],
+    gallery: [
+      "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=800&q=80",
+    ],
+  },
+  {
+    id: "hair-beauty",
+    name: "Friseur, Barber & Beauty",
+    category: "Beauty & Lifestyle",
+    icon: "✂️",
+    recommendedTheme: "dark-luxury",
+    hero: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=1200&q=80",
+    about: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=800&q=80",
+    services: [
+      "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=600&q=80",
+    ],
+    gallery: [
+      "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?auto=format&fit=crop&w=800&q=80",
+    ],
+  },
+  {
+    id: "gastro",
+    name: "Restaurant, Café & Bar",
+    category: "Gastronomie",
+    icon: "🍽️",
+    recommendedTheme: "craft-gold",
+    hero: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
+    about: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+    services: [
+      "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=600&q=80",
+    ],
+    gallery: [
+      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1541544741938-0af808871cc0?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=800&q=80",
+    ],
+  },
+  {
+    id: "craft-wood",
+    name: "Handwerk, Bau & Schreinerei",
+    category: "Handwerk",
+    icon: "🔨",
+    recommendedTheme: "craft-gold",
+    hero: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=1200&q=80",
+    about: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80",
+    services: [
+      "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&q=80",
+    ],
+    gallery: [
+      "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1530124566582-a618bc2615dc?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80",
+    ],
+  },
+  {
+    id: "electric-solar",
+    name: "Elektro, Smarthome & Solar",
+    category: "Handwerk & Energie",
+    icon: "⚡",
+    recommendedTheme: "clean-blue",
+    hero: "https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=1200&q=80",
+    about: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80",
+    services: [
+      "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1508873696983-2df5293cb32f?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80",
+    ],
+    gallery: [
+      "https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1508873696983-2df5293cb32f?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80",
+    ],
+  },
+  {
+    id: "auto-kfz",
+    name: "KFZ-Werkstatt & Autopflege",
+    category: "Automotive",
+    icon: "🚗",
+    recommendedTheme: "dark-luxury",
+    hero: "https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=1200&q=80",
+    about: "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=800&q=80",
+    services: [
+      "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1625047509168-a7026f36de04?auto=format&fit=crop&w=600&q=80",
+    ],
+    gallery: [
+      "https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1625047509168-a7026f36de04?auto=format&fit=crop&w=800&q=80",
+    ],
+  },
+  {
+    id: "law-tax",
+    name: "Kanzlei, Recht & Steuer",
+    category: "Recht & Finanzen",
+    icon: "⚖️",
+    recommendedTheme: "clean-blue",
+    hero: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
+    about: "https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=800&q=80",
+    services: [
+      "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=600&q=80",
+    ],
+    gallery: [
+      "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=800&q=80",
+    ],
+  },
+  {
+    id: "real-estate",
+    name: "Immobilien & Architektur",
+    category: "Immobilien",
+    icon: "🏡",
+    recommendedTheme: "slate-minimal",
+    hero: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+    about: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80",
+    services: [
+      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1600573472591-ee6b68d14c68?auto=format&fit=crop&w=600&q=80",
+    ],
+    gallery: [
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=800&q=80",
+    ],
+  },
+  {
+    id: "health-physio",
+    name: "Physiotherapie & Gesundheit",
+    category: "Gesundheit",
+    icon: "🩺",
+    recommendedTheme: "emerald-fresh",
+    hero: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80",
+    about: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=800&q=80",
+    services: [
+      "https://images.unsplash.com/photo-1576091160291-237466e3924f?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=600&q=80",
+    ],
+    gallery: [
+      "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=800&q=80",
+    ],
+  },
+  {
+    id: "agency-tech",
+    name: "Agentur, IT & Software",
+    category: "Digital",
+    icon: "💻",
+    recommendedTheme: "royal-purple",
+    hero: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1200&q=80",
+    about: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
+    services: [
+      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80",
+    ],
+    gallery: [
+      "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=800&q=80",
+    ],
+  },
+];
+
+export function getSuggestedGalleryPack(industry?: string): IndustryGalleryPack {
+  const norm = (industry || "").toLowerCase();
+  if (norm.includes("zahn") || norm.includes("dentist")) return INDUSTRY_GALLERY_PACKS[0];
+  if (norm.includes("friseur") || norm.includes("hair") || norm.includes("barber") || norm.includes("salon")) return INDUSTRY_GALLERY_PACKS[1];
+  if (norm.includes("restaurant") || norm.includes("caf") || norm.includes("gastro") || norm.includes("bar")) return INDUSTRY_GALLERY_PACKS[2];
+  if (norm.includes("handwerk") || norm.includes("schrein") || norm.includes("bau") || norm.includes("holz")) return INDUSTRY_GALLERY_PACKS[3];
+  if (norm.includes("elektro") || norm.includes("solar") || norm.includes("smart")) return INDUSTRY_GALLERY_PACKS[4];
+  if (norm.includes("auto") || norm.includes("kfz") || norm.includes("werkstatt")) return INDUSTRY_GALLERY_PACKS[5];
+  if (norm.includes("kanzlei") || norm.includes("anwalt") || norm.includes("steuer") || norm.includes("notar")) return INDUSTRY_GALLERY_PACKS[6];
+  if (norm.includes("immo") || norm.includes("makler") || norm.includes("architekt")) return INDUSTRY_GALLERY_PACKS[7];
+  if (norm.includes("physio") || norm.includes("arzt") || norm.includes("gesund") || norm.includes("praxis")) return INDUSTRY_GALLERY_PACKS[8];
+  return INDUSTRY_GALLERY_PACKS[9]; // Agency/Tech
+}
+
 export function generateDefaultMockupContent(company: Company): MockupContent {
+  const pack = getSuggestedGalleryPack(company.industry);
   const preset = getIndustryPreset(company.industry, company.city);
   const name = company.name || "Ihr Betrieb";
   const city = company.city || "Ihrer Region";
@@ -392,7 +652,7 @@ export function generateDefaultMockupContent(company: Company): MockupContent {
     heroDescription: `${name} ist Ihr verlässlicher Partner in ${city}. Wir bieten Ihnen maßgeschneiderte Lösungen, persönliche Beratung und termingerechte Ausführung.`,
     heroCta: "Online Termin / Angebot anfragen",
     heroSecondaryCta: "Leistungen entdecken",
-    heroImage: preset.heroImage,
+    heroImage: pack.hero,
     stats: [
       { value: "15+ Jahre", label: "Regionale Erfahrung" },
       { value: "4.9 ★", label: "Google Bewertung" },
@@ -403,7 +663,7 @@ export function generateDefaultMockupContent(company: Company): MockupContent {
     servicesSubtitle: `Professionelle Angebote von ${name} für Privat- und Gewerbekunden in ${city}`,
     services: preset.defaultServices.map((s, idx) => ({
       ...s,
-      image: preset.serviceImages[idx] || preset.serviceImages[0],
+      image: pack.services[idx] || pack.services[0],
     })),
     processTitle: "In 3 einfachen Schritten zum Ziel",
     processSubtitle: "Schnell, unkompliziert und transparent – so arbeiten wir mit Ihnen zusammen.",
@@ -426,7 +686,7 @@ export function generateDefaultMockupContent(company: Company): MockupContent {
     ],
     aboutTitle: `Über ${name} in ${city}`,
     aboutText: `Als inhabergeführter Fachbetrieb legen wir bei ${name} größten Wert auf Kundenzufriedenheit, transparente Preise und meisterhafte Ausführung. Mit langjähriger Erfahrung sind wir Ihr Ansprechpartner in ${city} und Umgebung.`,
-    aboutImage: preset.aboutImage,
+    aboutImage: pack.about,
     aboutPoints: preset.defaultAboutPoints,
     testimonialsTitle: `Was Kunden über ${name} sagen`,
     testimonials: [

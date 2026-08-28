@@ -11,6 +11,7 @@ import {
   Clock,
   ExternalLink,
   HelpCircle,
+  Image as ImageIcon,
   Laptop,
   Loader2,
   MapPin,
@@ -35,6 +36,9 @@ import {
 import { useCompanyStore } from "@/components/providers/CompanyStoreProvider";
 import {
   generateDefaultMockupContent,
+  getSuggestedGalleryPack,
+  INDUSTRY_GALLERY_PACKS,
+  IndustryGalleryPack,
   STYLE_CONFIG,
   THEME_CONFIG,
 } from "@/lib/mockups/mockupAssets";
@@ -42,6 +46,7 @@ import type { Company } from "@/types/company";
 import type { MockupContent, MockupStyle, MockupTheme } from "@/types/mockup";
 
 type DeviceMode = "desktop" | "tablet" | "mobile";
+type ImageTarget = "hero" | "about" | "service-0" | "service-1" | "service-2";
 
 export function MockupPreviewClient({ initialCompany }: { initialCompany: Company }) {
   const { getCompany, markMockupReady } = useCompanyStore();
@@ -74,6 +79,12 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
     notes: "",
   });
 
+  // Dynamic Image Picker State
+  const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
+  const [activeImageTarget, setActiveImageTarget] = useState<ImageTarget>("hero");
+  const [selectedGalleryCategory, setSelectedGalleryCategory] = useState<string>("all");
+  const [customImageUrlInput, setCustomImageUrlInput] = useState("");
+
   // Initialize theme and content from localStorage or default preset
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -105,6 +116,46 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
   };
 
   const currentTheme = THEME_CONFIG[theme] || THEME_CONFIG["clean-blue"];
+
+  const handleOpenImagePicker = (target: ImageTarget = "hero") => {
+    setActiveImageTarget(target);
+    setIsImagePickerOpen(true);
+  };
+
+  const handleApplyImage = (url: string) => {
+    if (activeImageTarget === "hero") {
+      updateAndSaveContent({ ...content, heroImage: url });
+    } else if (activeImageTarget === "about") {
+      updateAndSaveContent({ ...content, aboutImage: url });
+    } else if (activeImageTarget.startsWith("service-")) {
+      const sIdx = parseInt(activeImageTarget.split("-")[1], 10);
+      const nextServices = [...content.services];
+      if (nextServices[sIdx]) {
+        nextServices[sIdx] = { ...nextServices[sIdx], image: url };
+        updateAndSaveContent({ ...content, services: nextServices });
+      }
+    }
+    setIsImagePickerOpen(false);
+    setFeedbackMessage("Bild erfolgreich aktualisiert!");
+    setTimeout(() => setFeedbackMessage(null), 3000);
+  };
+
+  const handleApplyGalleryPack = (pack: IndustryGalleryPack) => {
+    const nextServices = content.services.map((s, idx) => ({
+      ...s,
+      image: pack.services[idx] || pack.services[0],
+    }));
+    updateAndSaveContent({
+      ...content,
+      heroImage: pack.hero,
+      aboutImage: pack.about,
+      services: nextServices,
+    });
+    setTheme(pack.recommendedTheme);
+    setIsImagePickerOpen(false);
+    setFeedbackMessage(`Vollständiges Bilderset „${pack.name}“ & Theme angewendet!`);
+    setTimeout(() => setFeedbackMessage(null), 3500);
+  };
 
   const handleGenerateAI = async (styleToUse?: MockupStyle) => {
     if (generating) return;
@@ -303,7 +354,16 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
           })}
         </div>
 
-        <div className="edit-mode-toggle">
+        <div className="edit-mode-toggle" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            className="button secondary compact"
+            onClick={() => handleOpenImagePicker("hero")}
+            title="Branchen-Bildersets und eigene Bilder auswählen"
+          >
+            <ImageIcon size={13} />
+            <span>Bilder & Medien</span>
+          </button>
+
           <button
             className={`button secondary compact ${isEditing ? "active-edit" : ""}`}
             onClick={() => setIsEditing(!isEditing)}
@@ -538,7 +598,14 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                 </div>
 
                 {/* Full-Width Panoramic Visual */}
-                <div className="luxury-hero-card-showcase">
+                <div className="luxury-hero-card-showcase" style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    className="image-edit-overlay-btn"
+                    onClick={() => handleOpenImagePicker("hero")}
+                  >
+                    <ImageIcon size={13} /> Bild ändern
+                  </button>
                   <img
                     src={content.heroImage}
                     alt={company.name}
@@ -785,8 +852,15 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                   <div className="mock-hero-visual">
                     <div
                       className="hero-img-wrapper"
-                      style={{ borderColor: currentTheme.border }}
+                      style={{ borderColor: currentTheme.border, position: "relative" }}
                     >
+                      <button
+                        type="button"
+                        className="image-edit-overlay-btn"
+                        onClick={() => handleOpenImagePicker("hero")}
+                      >
+                        <ImageIcon size={13} /> Bild ändern
+                      </button>
                       <img
                         src={content.heroImage}
                         alt={company.name}
@@ -906,8 +980,15 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                   <div className="mock-hero-visual">
                     <div
                       className="hero-img-wrapper"
-                      style={{ borderColor: currentTheme.border }}
+                      style={{ borderColor: currentTheme.border, position: "relative" }}
                     >
+                      <button
+                        type="button"
+                        className="image-edit-overlay-btn"
+                        onClick={() => handleOpenImagePicker("hero")}
+                      >
+                        <ImageIcon size={13} /> Bild ändern
+                      </button>
                       <img
                         src={content.heroImage}
                         alt={company.name}
@@ -1015,7 +1096,15 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                     }}
                   >
                     {srv.image && (
-                      <div className="service-card-img-wrap">
+                      <div className="service-card-img-wrap" style={{ position: "relative" }}>
+                        <button
+                          type="button"
+                          className="image-edit-overlay-btn"
+                          style={{ top: 8, left: 8, padding: "4px 8px", fontSize: "0.7rem" }}
+                          onClick={() => handleOpenImagePicker(`service-${idx}` as ImageTarget)}
+                        >
+                          <ImageIcon size={11} /> Bild
+                        </button>
                         <img
                           src={srv.image}
                           alt={srv.title}
@@ -1170,8 +1259,15 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                 <div className="mock-about-img-col">
                   <div
                     className="about-img-wrap"
-                    style={{ borderColor: currentTheme.border }}
+                    style={{ borderColor: currentTheme.border, position: "relative" }}
                   >
+                    <button
+                      type="button"
+                      className="image-edit-overlay-btn"
+                      onClick={() => handleOpenImagePicker("about")}
+                    >
+                      <ImageIcon size={13} /> Bild ändern
+                    </button>
                     <img
                       src={content.aboutImage}
                       alt="Über uns"
@@ -1652,6 +1748,158 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                     </button>
                   </form>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Dynamic Image Picker & Gallery Modal */}
+          {isImagePickerOpen && (
+            <div
+              className="mock-modal-backdrop"
+              onClick={() => setIsImagePickerOpen(false)}
+            >
+              <div
+                className="image-picker-modal"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="image-picker-header">
+                  <div>
+                    <h3>🖼️ Branchen-Bildersets & Fotogalerie</h3>
+                    <p>
+                      Wähle hochauflösende Unsplash-Bilder für dein Mockup oder füge eine eigene Bild-URL ein.
+                    </p>
+                  </div>
+                  <button
+                    className="mock-close-btn"
+                    onClick={() => setIsImagePickerOpen(false)}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Target Slot Selector */}
+                <div className="image-picker-target-strip">
+                  <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#475569" }}>
+                    Aktives Bild:
+                  </span>
+                  <button
+                    className={`image-target-chip ${activeImageTarget === "hero" ? "active" : ""}`}
+                    onClick={() => setActiveImageTarget("hero")}
+                  >
+                    Hero-Hauptbild
+                  </button>
+                  <button
+                    className={`image-target-chip ${activeImageTarget === "about" ? "active" : ""}`}
+                    onClick={() => setActiveImageTarget("about")}
+                  >
+                    Über-uns-Bild
+                  </button>
+                  {content.services.map((srv, sIdx) => (
+                    <button
+                      key={sIdx}
+                      className={`image-target-chip ${activeImageTarget === `service-${sIdx}` ? "active" : ""}`}
+                      onClick={() => setActiveImageTarget(`service-${sIdx}` as ImageTarget)}
+                    >
+                      Leistung {sIdx + 1}: {srv.title.slice(0, 15)}...
+                    </button>
+                  ))}
+                </div>
+
+                <div className="image-picker-body">
+                  {/* Quick Full Pack Applicator Card */}
+                  {(() => {
+                    const suggestedPack = getSuggestedGalleryPack(company.industry);
+                    return (
+                      <div className="pack-applicator-card">
+                        <div>
+                          <strong>🚀 1-Klick Komplett-Set: {suggestedPack.name}</strong>
+                          <span>
+                            Wendet aufeinander abgestimmte Bilder für Hero, Über uns und alle 3 Leistungen an.
+                          </span>
+                        </div>
+                        <button
+                          className="pack-apply-btn"
+                          onClick={() => handleApplyGalleryPack(suggestedPack)}
+                        >
+                          Komplett-Set anwenden ✓
+                        </button>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Industry Filter Chips */}
+                  <div>
+                    <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: 8 }}>
+                      BRANCHE FILTERN:
+                    </span>
+                    <div className="industry-filter-chips">
+                      <button
+                        className={`industry-filter-btn ${selectedGalleryCategory === "all" ? "active" : ""}`}
+                        onClick={() => setSelectedGalleryCategory("all")}
+                      >
+                        🌐 Alle Branchen
+                      </button>
+                      {INDUSTRY_GALLERY_PACKS.map((pack) => (
+                        <button
+                          key={pack.id}
+                          className={`industry-filter-btn ${selectedGalleryCategory === pack.id ? "active" : ""}`}
+                          onClick={() => setSelectedGalleryCategory(pack.id)}
+                        >
+                          <span>{pack.icon}</span> {pack.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Gallery Image Grid */}
+                  <div>
+                    <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: 8 }}>
+                      KLICKE AUF EIN FOTO ZUM ERSETZEN:
+                    </span>
+                    <div className="gallery-grid">
+                      {(selectedGalleryCategory === "all"
+                        ? INDUSTRY_GALLERY_PACKS.flatMap((p) => p.gallery.map((img) => ({ img, name: p.name })))
+                        : (INDUSTRY_GALLERY_PACKS.find((p) => p.id === selectedGalleryCategory)?.gallery || []).map((img) => ({
+                            img,
+                            name: selectedGalleryCategory,
+                          }))
+                      ).map((item, gIdx) => (
+                        <div
+                          key={gIdx}
+                          className="gallery-thumb-card"
+                          onClick={() => handleApplyImage(item.img)}
+                        >
+                          <img src={item.img} alt={item.name} />
+                          <div className="thumb-hover-overlay">
+                            <span>Als {activeImageTarget} wählen ✓</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Custom URL Input */}
+                  <div className="custom-url-box">
+                    <input
+                      className="custom-url-input"
+                      placeholder="Oder füge eine eigene Bild-URL ein (https://...)"
+                      value={customImageUrlInput}
+                      onChange={(e) => setCustomImageUrlInput(e.target.value)}
+                    />
+                    <button
+                      className="custom-url-btn"
+                      disabled={!customImageUrlInput.trim()}
+                      onClick={() => {
+                        if (customImageUrlInput.trim()) {
+                          handleApplyImage(customImageUrlInput.trim());
+                          setCustomImageUrlInput("");
+                        }
+                      }}
+                    >
+                      Bild einfügen
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

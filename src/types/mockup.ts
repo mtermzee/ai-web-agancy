@@ -3,7 +3,10 @@ export type MockupTheme =
   | "craft-gold"
   | "dark-luxury"
   | "emerald-fresh"
-  | "vibrant-orange";
+  | "vibrant-orange"
+  | "royal-purple"
+  | "rose-luxury"
+  | "slate-minimal";
 
 export type MockupStyle =
   | "conversion"
