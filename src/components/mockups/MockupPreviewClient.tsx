@@ -9,6 +9,9 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  Code,
+  Copy,
+  Download,
   ExternalLink,
   HelpCircle,
   Image as ImageIcon,
@@ -21,6 +24,7 @@ import {
   Pencil,
   Phone,
   Plus,
+  Printer,
   RotateCcw,
   Save,
   Search,
@@ -44,6 +48,7 @@ import {
   STYLE_CONFIG,
   THEME_CONFIG,
 } from "@/lib/mockups/mockupAssets";
+import { generateStandaloneMockupHtml } from "@/lib/mockups/mockupHtmlExporter";
 import type { Company } from "@/types/company";
 import type { MockupContent, MockupStyle, MockupTheme } from "@/types/mockup";
 
@@ -161,6 +166,61 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
     setTimeout(() => setFeedbackMessage(null), 3500);
   };
 
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  const handleDownloadHtml = () => {
+    const html = generateStandaloneMockupHtml(company, content, theme);
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${company.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}-website.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setIsExportModalOpen(false);
+    setFeedbackMessage("HTML & Tailwind Datei erfolgreich heruntergeladen!");
+    setTimeout(() => setFeedbackMessage(null), 3000);
+  };
+
+  const handleCopyHtml = () => {
+    const html = generateStandaloneMockupHtml(company, content, theme);
+    if (typeof window !== "undefined") {
+      navigator.clipboard.writeText(html);
+      setFeedbackMessage("Vollständiger HTML & Tailwind Code in Zwischenablage kopiert!");
+      setTimeout(() => setFeedbackMessage(null), 3000);
+    }
+  };
+
+  const handleCopyPitchUrl = () => {
+    if (typeof window !== "undefined") {
+      const url = `${window.location.origin}/pitch/${company.id}`;
+      navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      setFeedbackMessage("Kunden-Pitch-Link kopiert!");
+      setTimeout(() => {
+        setCopiedLink(false);
+        setFeedbackMessage(null);
+      }, 3000);
+    }
+  };
+
+  const handleOpenPitchUrl = () => {
+    if (typeof window !== "undefined") {
+      window.open(`/pitch/${company.id}`, "_blank");
+    }
+  };
+
+  const handlePrintPitchDeck = () => {
+    if (typeof window !== "undefined") {
+      setIsExportModalOpen(false);
+      setTimeout(() => {
+        window.print();
+      }, 300);
+    }
+  };
+
   const handleGenerateAI = async (styleToUse?: MockupStyle) => {
     if (generating) return;
     setGenerating(true);
@@ -273,16 +333,16 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
         {/* Right: Actions */}
         <div className="topbar-right">
           <button
-            className="button secondary compact"
-            onClick={handleCopyPitchLink}
-            title="Teilbaren Pitch-Link kopieren"
+            className="button primary compact pulse-cta"
+            onClick={() => setIsExportModalOpen(true)}
+            title="Kunden-Pitch Link teilen & HTML exportieren"
           >
             <Share2 size={14} />
-            <span>{copiedLink ? "Link kopiert! ✓" : "Pitch-Link"}</span>
+            <span>Export & Teilen</span>
           </button>
 
           <button
-            className="button primary compact"
+            className="button secondary compact"
             onClick={() => void handleGenerateAI()}
             disabled={generating}
           >
@@ -2017,6 +2077,141 @@ export function MockupPreviewClient({ initialCompany }: { initialCompany: Compan
                     >
                       Bild einfügen
                     </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Export & Pitch Share Modal */}
+          {isExportModalOpen && (
+            <div
+              className="mock-modal-backdrop"
+              onClick={() => setIsExportModalOpen(false)}
+            >
+              <div
+                className="export-modal"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="export-modal-header">
+                  <div>
+                    <h3>📤 Website-Mockup teilen & exportieren</h3>
+                    <p>
+                      Präsentiere diesen Entwurf deinem Kunden oder exportiere den produktionsfertigen HTML-Code.
+                    </p>
+                  </div>
+                  <button
+                    className="mock-close-btn"
+                    onClick={() => setIsExportModalOpen(false)}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="export-modal-body">
+                  <div className="export-grid">
+                    {/* 1. Public Client Pitch Link */}
+                    <div className="export-card">
+                      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                        <div className="export-card-icon">🔗</div>
+                        <div className="export-card-info">
+                          <strong>Kunden-Präsentationslink</strong>
+                          <p>
+                            Öffnet eine cleane Präsentationsansicht ohne interne Agentur-Menüs – ideal für Kunden-Demos per E-Mail oder WhatsApp.
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          className="export-action-btn"
+                          onClick={handleCopyPitchUrl}
+                        >
+                          <Copy size={13} />
+                          <span>{copiedLink ? "Kopiert! ✓" : "Link kopieren"}</span>
+                        </button>
+                        <button
+                          className="export-action-btn secondary"
+                          onClick={handleOpenPitchUrl}
+                          title="In neuem Tab öffnen"
+                        >
+                          <ExternalLink size={13} />
+                          <span>Öffnen</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 2. Standalone HTML & Tailwind Export */}
+                    <div className="export-card">
+                      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                        <div className="export-card-icon" style={{ background: "#fef3c7", color: "#d97706" }}>📄</div>
+                        <div className="export-card-info">
+                          <strong>HTML & Tailwind Datei</strong>
+                          <p>
+                            Lädt eine fertige, eigenständige <code style={{ fontSize: "0.75rem" }}>index.html</code> mit responsivem Tailwind CSS und interaktiven Skripten herunter.
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          className="export-action-btn"
+                          style={{ background: "#d97706" }}
+                          onClick={handleDownloadHtml}
+                        >
+                          <Download size={13} />
+                          <span>HTML herunterladen</span>
+                        </button>
+                        <button
+                          className="export-action-btn secondary"
+                          onClick={handleCopyHtml}
+                          title="HTML-Code in Zwischenablage kopieren"
+                        >
+                          <Code size={13} />
+                          <span>Code kopieren</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 3. Pitch Deck / PDF Print */}
+                    <div className="export-card">
+                      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                        <div className="export-card-icon" style={{ background: "#f0fdf4", color: "#16a34a" }}>🖨️</div>
+                        <div className="export-card-info">
+                          <strong>Pitch Deck / PDF drucken</strong>
+                          <p>
+                            Öffnet den optimierten Druckdialog für hochauflösende PDF-Exporte und Pitch-Präsentationsunterlagen.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        className="export-action-btn"
+                        style={{ background: "#16a34a" }}
+                        onClick={handlePrintPitchDeck}
+                      >
+                        <Printer size={13} />
+                        <span>Als PDF / Druckansicht</span>
+                      </button>
+                    </div>
+
+                    {/* 4. Live Pitch Preview */}
+                    <div className="export-card">
+                      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                        <div className="export-card-icon" style={{ background: "#f5f3ff", color: "#7c3aed" }}>✨</div>
+                        <div className="export-card-info">
+                          <strong>Vorher / Nachher Pitch View</strong>
+                          <p>
+                            Zeigt die alte Website-Analyse im direkten Vergleich mit dem neuen Entwurf.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        className="export-action-btn"
+                        style={{ background: "#7c3aed" }}
+                        onClick={handleOpenPitchUrl}
+                      >
+                        <Zap size={13} />
+                        <span>Pitch-View starten →</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
