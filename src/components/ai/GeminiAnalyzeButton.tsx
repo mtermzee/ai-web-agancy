@@ -34,28 +34,31 @@ export function GeminiAnalyzeButton({
 				body: JSON.stringify({ companyId }),
 			});
 			const raw = await response.text();
-			let payload: GeminiAnalysisResponse & {
+			let payload: (GeminiAnalysisResponse & {
 				error?: string;
 				code?: string;
 				requestId?: string;
-			};
+			}) | null = null;
+
 			try {
-				payload = JSON.parse(raw) as GeminiAnalysisResponse & {
-					error?: string;
-					code?: string;
-					requestId?: string;
-				};
+				payload = JSON.parse(raw);
 			} catch {
+				if (response.status === 504 || raw.includes("FUNCTION_INVOCATION_TIMEOUT")) {
+					throw new Error(
+						"AI request timed out. The website or model took too long to respond. Please try again or check your Gemini model settings.",
+					);
+				}
 				throw new Error(
-					`AI endpoint returned ${response.status}: ${raw.slice(0, 220) || "empty response"}`,
+					`AI endpoint returned ${response.status}: ${raw.slice(0, 160) || "empty response"}`,
 				);
 			}
-			if (!response.ok) {
-				const requestSuffix = payload.requestId
+
+			if (!response.ok || !payload) {
+				const requestSuffix = payload?.requestId
 					? ` · ref ${payload.requestId}`
 					: "";
 				throw new Error(
-					`${payload.error || `Gemini analysis failed (${response.status}).`}${requestSuffix}`,
+					`${payload?.error || `Gemini analysis failed (${response.status}).`}${requestSuffix}`,
 				);
 			}
 

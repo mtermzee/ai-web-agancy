@@ -43,10 +43,10 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 
 # Server-only. Never use NEXT_PUBLIC_ for this key.
 GEMINI_API_KEY=your_google_ai_studio_api_key
-GEMINI_MODEL=gemini-3.7-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
-For Vercel, add `GEMINI_API_KEY` and optionally `GEMINI_MODEL` in Project Settings -> Environment Variables, then redeploy.
+For Vercel, add `GEMINI_API_KEY` and optionally `GEMINI_MODEL` (default: `gemini-3.5-flash-lite` for ultra-fast response times to avoid Serverless Function timeouts) in Project Settings -> Environment Variables, then redeploy.
 
 A consumer Gemini subscription does not substitute for the API credential used by the server route; use a Gemini API key from Google AI Studio / the Gemini API project you want billed or rate-limited.
 

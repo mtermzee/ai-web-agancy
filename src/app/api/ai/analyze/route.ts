@@ -271,7 +271,7 @@ export async function POST(request: Request) {
 			company_id: companyId,
 			created_by: userId,
 			status: "failed",
-			model: process.env.GEMINI_MODEL?.trim() || "gemini-3.7-flash",
+			model: process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite",
 			mode: chooseGeminiAnalysisMode(company),
 			input_url: company.website ?? null,
 			error: message,

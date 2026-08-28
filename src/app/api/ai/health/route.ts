@@ -28,6 +28,6 @@ export async function GET() {
     workspace: Boolean(membership) && !membershipError,
     role: membership?.role ?? null,
     geminiConfigured: isGeminiConfigured(),
-    model: process.env.GEMINI_MODEL?.trim() || "gemini-3.7-flash",
+    model: process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite",
   });
 }

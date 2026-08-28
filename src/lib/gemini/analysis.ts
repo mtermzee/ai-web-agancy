@@ -10,7 +10,7 @@ import type {
 	GeminiSource,
 } from "@/types/ai";
 
-const DEFAULT_MODEL = "gemini-3.7-flash";
+const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 
 const analysisSchema = {
 	type: "object",
@@ -225,6 +225,14 @@ function friendlyGeminiError(error: unknown) {
 	if (lower.includes("not found") || lower.includes("404")) {
 		return `Gemini model or endpoint not found. Current model: ${process.env.GEMINI_MODEL?.trim() || DEFAULT_MODEL}. (${raw})`;
 	}
+	if (
+		lower.includes("timeout") ||
+		lower.includes("timed out") ||
+		lower.includes("etimedout") ||
+		lower.includes("abort")
+	) {
+		return `Gemini request timed out. The website or AI model took too long to respond. (${raw})`;
+	}
 
 	return raw;
 }
@@ -234,18 +242,25 @@ async function runInteraction(
 	company: Company,
 	model: string,
 	mode: GeminiAnalysisMode,
+	timeoutMs = 7000,
 ) {
-	const interaction = await ai.interactions.create({
-		model,
-		input: buildPrompt(company, mode),
-		tools:
-			mode === "website_url_context" ? [{ type: "url_context" }] : undefined,
-		response_format: {
-			type: "text",
-			mime_type: "application/json",
-			schema: analysisSchema,
+	const interaction = await ai.interactions.create(
+		{
+			model,
+			input: buildPrompt(company, mode),
+			tools:
+				mode === "website_url_context" ? [{ type: "url_context" }] : undefined,
+			generation_config: {
+				thinking_level: "minimal",
+			},
+			response_format: {
+				type: "text",
+				mime_type: "application/json",
+				schema: analysisSchema,
+			},
 		},
-	});
+		{ timeout_ms: timeoutMs },
+	);
 
 	const outputText = interaction.output_text;
 	if (!outputText) {
@@ -297,15 +312,18 @@ export async function analyzeCompanyWithGemini(
 	let result: Awaited<ReturnType<typeof runInteraction>>;
 
 	try {
-		result = await runInteraction(ai, company, model, mode);
+		// Allocate up to 6.5s for live URL context to stay safely within Vercel's 10s Hobby limit
+		const timeout = mode === "website_url_context" ? 6500 : 7500;
+		result = await runInteraction(ai, company, model, mode, timeout);
 	} catch (error) {
 		// A real public URL can still reject bots, require JS/cookies, time out, or be
 		// inaccessible to URL Context. Falling back keeps the human-triggered CRM flow usable.
 		if (mode === "website_url_context") {
-			warning = `Live URL Context failed, so AgencyOS analyzed the stored company/audit profile instead. Original error: ${friendlyGeminiError(error)}`;
+			warning = `Live URL Context failed or timed out, so AgencyOS analyzed the stored company/audit profile instead.`;
 			mode = "stored_profile";
 			try {
-				result = await runInteraction(ai, company, model, mode);
+				// Fast fallback with 4s timeout
+				result = await runInteraction(ai, company, model, mode, 4000);
 			} catch (fallbackError) {
 				throw new Error(friendlyGeminiError(fallbackError));
 			}
