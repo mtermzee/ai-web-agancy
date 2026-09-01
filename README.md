@@ -100,6 +100,16 @@ UI syncs from Supabase
 - `/outreach`
 - `/settings`
 
+## Main routes
+  
+- To insert new owner email in supabase
+`insert into public.workspace_members (user_id, role)
+select id, 'owner'
+from auth.users
+where email = 'DEINE_EMAIL@example.com'
+on conflict (user_id)
+do update set role = 'owner';`
+
 ## Security
 
 - Gemini key is server-only.
